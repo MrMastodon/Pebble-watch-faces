@@ -1,126 +1,111 @@
-# LCARS Readout — design- og implementasjonsplan
+# LCARS Readout — design og status
+
+![Skjermbilde fra emery-emulatoren](screenshot.png)
 
 ## Konsept
 
 Et LCARS-inspirert (Star Trek) watchface for Pebble Time 2 (Emery,
-200×228 px, farge, avrundede hjørner). Rammen rundt kanten beholder den
-klassiske, fargerike, mørke LCARS-stilen (elbow-paneler, stolper), men alle
-**avlesningsfelt** — klokkeslett, dato, batteri, Bluetooth-status — vises som
-**svart tekst på lyse paneler** for bedre lesbarhet enn tradisjonell LCARS
-(lys tekst på mørk bunn). Dette er en bevisst "delvis invertering": rammen
-er mørk og fargerik som forbildet, innholdet er lyst og lesbart.
+200×228 px, farge). Rammen — elbow-kolonnen til venstre og de fargede
+etikettbarene — beholder den klassiske, mørke, fargerike LCARS-stilen, men
+alle **avlesningsfelt** vises som **svart tekst på lyse paneler**. Det gir
+langt bedre lesbarhet enn tradisjonell LCARS (lys tekst på mørk bunn), som
+var hele motivasjonen for dette watchfacet.
 
-Inspirert av den generelle LCARS-designtradisjonen og layout-ideer fra
-`AKlitbo/pebble-watchfaces` sitt "LCARS Stardate"-watchface — men koden her
-er egenutviklet fra bunnen av, ikke kopiert (det prosjektet er lisensiert
-PolyForm Noncommercial og ikke fritt gjenbrukbart).
+Inspirert av LCARS-designtradisjonen generelt og av layout-ideene i
+`AKlitbo/pebble-watchfaces` sin "LCARS Stardate" — men all kode her er
+egenutviklet. Det prosjektet er lisensiert PolyForm Noncommercial og er ikke
+fritt gjenbrukbart, så ingenting derfra er kopiert.
 
-## Layout (200×228 px)
+## Layout (200×228)
 
 ```
-┌──┬──────────────────────────┐
-│▓▓│  DAG · DATO   (gull bar) │  <- toppstolpe, ~20px høy, svart tekst
-├──┤                          │
-│▓▓│  ┌────────────────────┐  │
-│▓▓│  │                    │  │
-│▓▓│  │      12:34         │  │  <- hovedpanel: lyst, stor svart tekst
-│▓▓│  │                    │  │
-│░░│  └────────────────────┘  │
-│░░│  ┌────────┬───────────┐  │
-│░░│  │ BATT   │ BT        │  │  <- to mindre lyse paneler i rad
-│░░│  │ 82%    │ ●         │  │     m/ fargede LCARS-etiketter over
-│░░│  └────────┴───────────┘  │
-└──┴──────────────────────────┘
-  ^ venstre "elbow"-kolonne, ~40px bred
-    ▓▓ = oransje (øvre halvdel)
-    ░░ = fiolett-blå (nedre halvdel)
+┌────────┬──────────────────┐
+│▓▓▓▓▓▓▓▓│  ONS 29 JUL      │ y 0–22    elbow-arm + gull datobar
+│▓▓┐     └──────────────────┤
+│▓▓│  ┌────────────────────┐│
+│▓▓│  │      16:38         ││ y 26–84   lyst panel, stor svart tekst
+│▓▓│  └────────────────────┘│
+│▓▓│  ┌SENSORS─────────────┐│ y 88–130  reservert (vær)
+│▓▓│  │        --          ││
+│  │  ├VITALS──────────────┤│ y 134–176 reservert (puls/skritt)
+│░░│  │        --          ││
+│░░│  ├SYSTEMS─────────────┤│ y 180–222 LIVE (batteri + BT)
+│░░│  │  100%   LINK       ││
+│▒▒│  └────────────────────┘│
+└──┴────────────────────────┘
+ ▓ oransje   ░ fiolett   ▒ rose
 ```
 
-- **Venstre kolonne** (~40 px bred, full høyde): klassisk LCARS elbow —
-  avrundet øvre venstre hjørne som kurver ned i toppstolpen. Stables i to
-  fargeblokker: oransje øverst (~40 % av høyden), fiolett-blå resten.
-- **Toppstolpe** (~20 px høy, fra elbow og bortover): `GColorChromeYellow`
-  (gull/rav), med liten svart tekst for ukedag + dato (f.eks. "MON 29 JUL").
-- **Hovedpanel** (klokkeslett): lyst panel (`GColorWhite`), avrundede
-  hjørner, stor fet svart tekst, sentrert i den øvre halvdelen av
-  hovedfeltet.
-- **Databaner** (batteri, Bluetooth): to mindre lyse paneler
-  (`GColorLightGray` eller hvit) side ved side under klokkeslettet, hver med
-  en smal fargestolpe-etikett (rødlig rose / oransje) med svart tekst rett
-  over ("BATT", "BT"), og selve verdien i svart tekst i det lyse feltet
-  under.
-- **Høyre/nedre kant**: valgfrie små dekorative fargeblokker ("sp"-elementer
-  i LCARS-stil) for å ramme inn hovedpanelet visuelt, i samme palett som
-  elbow-kolonnen.
+- **Elbow-kolonnen** (40 px bred) er en ekte LCARS-elbow: vertikal arm pluss
+  en horisontal arm øverst, der den konkave innerkurven "skjæres ut" ved å
+  male bakgrunnsfargen tilbake over hjørnet med en avrundet rektangel.
+  Kolonnen er segmentert nedover i oransje → fiolett → rose.
+- **Tre readout-slots**, definert av `READOUT_COUNT` og posisjonert med
+  `READOUT_Y(i)`-makroen i `lcars_theme.h`. Alle tre er fullt wiret opp med
+  egen fargekodet etikettbar, lyst datapanel, `TextLayer` og tekstbuffer.
+  Slot 0 og 1 viser `--` inntil de får data — å ta dem i bruk er da bare å
+  fylle riktig buffer.
 
-## Fargepalett (Pebble `GColor`, alle støttet på Emery)
+## Fargepalett
 
-| Bruk                          | Farge                                    |
-|-------------------------------|-------------------------------------------|
-| Elbow øvre blokk               | `GColorOrange`                            |
-| Elbow nedre blokk               | `GColorVividViolet` (evt. `GColorLavenderIndigo`) |
-| Toppstolpe (dato)               | `GColorChromeYellow`                      |
-| Etikett-stolper (BATT/BT)        | `GColorRoseVale`                          |
-| Avlesningspaneler (bakgrunn)      | `GColorWhite`                             |
-| Sekundærpaneler (bakgrunn)         | `GColorLightGray`                       |
-| All tekst i lyse paneler            | `GColorBlack`                          |
-| All tekst i fargede stolper/etiketter | `GColorBlack`                       |
+Alle farger er fra Pebbles 64-fargepalett. Merk at Emery-skjermen er
+reflektiv, så fargene fremstår mer dempede på klokka (og i emulatoren) enn
+hex-verdiene tilsier.
+
+| Bruk                 | GColor                  |
+|----------------------|--------------------------|
+| Elbow øvre arm         | `GColorOrange`          |
+| Elbow midtseksjon       | `GColorVividViolet`     |
+| Elbow fot                | `GColorRoseVale`       |
+| Datobar                   | `GColorChromeYellow`  |
+| Etikett SENSORS            | `GColorRoseVale`     |
+| Etikett VITALS              | `GColorLavenderIndigo` |
+| Etikett SYSTEMS              | `GColorChromeYellow` |
+| Alle datapaneler              | `GColorWhite`       |
+| All tekst                      | `GColorBlack`      |
+
+## Status
+
+**Implementert og bygget (MVP):**
+- Klokkeslett, oppdatert per minutt (`MINUTE_UNIT` — ikke sekund, av hensyn
+  til batteri). Respekterer 12/24-timers systeminnstilling.
+- Dato i toppbaren (ukedag, dag, måned).
+- SYSTEMS-slot: batteriprosent og Bluetooth-status (`LINK` / `NO LINK`),
+  oppdatert via `battery_state_service` og `connection_service`.
+
+**Reservert, ikke implementert ennå:**
+- SENSORS-slot: værdata via PebbleKit JS (Open-Meteo, ingen API-nøkkel).
+  Krever `src/pkjs/index.js` og `messageKeys` i `package.json`.
+- VITALS-slot: puls og/eller skritt via `HealthService`
+  (`HealthMetricHeartRateBPM`, `HealthMetricStepCount`).
+- Egen font (Antonio, SIL OFL) i stedet for systemfontene.
+- Flere fargetema via Clay-innstillinger.
+- Vibrasjon på hel time.
 
 ## Typografi
 
-- Forslag: **Antonio** (Google Fonts, SIL Open Font License), kondensert
-  sans-serif som gir en god LCARS-følelse. Lastes ned separat under
-  implementasjon og legges i `resources/fonts/antonio-bold.ttf`, bygges inn
-  via `package.json` sin `media`-liste.
-- Fallback uten custom font (raskere å komme i gang med): Pebbles innebygde
-  `FONT_KEY_BITHAM_42_BOLD` for klokkeslett og `FONT_KEY_GOTHIC_18_BOLD` /
-  `FONT_KEY_GOTHIC_14` for øvrig tekst.
+Bruker foreløpig Pebbles innebygde fonter: `BITHAM_42_BOLD` for klokkeslett,
+`GOTHIC_18_BOLD` for dato, `GOTHIC_24_BOLD` for verdier og `GOTHIC_14` for
+etiketter. Antonio (Google Fonts, SIL OFL) er et aktuelt bytte senere — se
+`resources/README.md`.
 
-## Funksjonsomfang
+## Bygg
 
-**MVP (denne mappen sitt kodeskjelett dekker strukturen for):**
-- Klokkeslett (time:minutt, oppdateres hvert minutt via
-  `tick_timer_service_subscribe(MINUTE_UNIT, ...)` — ikke sekund, for
-  batterisparing).
-- Dato (ukedag + dag + måned).
-- Batteriprosent (`battery_state_service_subscribe`).
-- Bluetooth-tilkoblingsstatus (`connection_service_subscribe`).
+```bash
+cd watchfaces/lcars-readout
+pebble build                      # -> build/lcars-readout.pbw
+pebble install --emulator emery   # krever X-display
+```
 
-**Fase 2 (senere, ikke del av skjelettet nå):**
-- Værdata via PebbleKit JS (Open-Meteo, uten API-nøkkel — som i forbildet).
-- Flere fargetema-varianter (f.eks. "Classic" / "Voyager" / "Mono") valgbare
-  via Clay-innstillinger.
-- Vibrasjon på hel time (valgfri innstilling).
-- Skrittdata / helsedata fra Pebble Health API.
+Sist bygde `.pbw` er sjekket inn under `dist/lcars-readout.pbw` og kan
+installeres direkte på klokka via Pebble-telefonappen.
 
-## Teknisk tilnærming
+Bygget med `pebble-tool` 5.0.39 og Pebble SDK 4.17, target `emery`.
+Minneforbruk: 2332 byte RAM, 4092 byte ressurser — god plass til utvidelser.
 
-- Ren C, ingen bitmap-ressurser for selve LCARS-formene — alt tegnes med
-  `Layer` + `layer_set_update_proc` og `graphics_fill_rect(...,
-  GCornerMask, radius)` for avrundede paneler. Holder appen lett og gjør
-  fargejustering enkelt (kun konstanter i `lcars_theme.h`).
-- `TextLayer` for all tekst, plassert oppå de tegnede panelene.
-- Layout-mål og farger samles i `src/c/lcars_theme.h` slik at hele
-  fargepaletten/layouten kan justeres ett sted.
+### Fallgruve på Linux uten IPv6
 
-## Byggverktøy
-
-- [`pebble-tool`](https://github.com/pebble-dev/pebble-tool) (Rebble),
-  SDK 4.17.
-- Target-plattform: `emery` (Pebble Time 2). Vurder å legge til
-  `basalt`/`chalk`/`diorite` i `targetPlatforms` senere for
-  bakoverkompatibilitet — krever da fallback-layout for mindre skjermer.
-
-## Verifisering (i et miljø med SDK installert)
-
-1. `cd watchfaces/lcars-readout && pebble build` — bekreft at prosjektet
-   kompilerer uten feil.
-2. `pebble install --emulator emery` — visuell sjekk i emulator (krever
-   X-display).
-3. Sjekk kontrast/lesbarhet: klokkeslett og databaner skal være lett
-   leselige i vanlig innendørsbelysning og direkte sollys (Pebble Time 2 har
-   reflekterende LCD, så mørk tekst på lys bunn bør faktisk gi bedre
-   utendørslesbarhet enn originalens lys-på-mørk).
-4. Installer på fysisk Pebble Time 2 og sammenlign side om side med
-   "LCARS Stardate" for å bekrefte at det oppleves mer lesbart, som var
-   hele motivasjonen for dette watchfacet.
+`pebble install --emulator` feiler med `[Errno 111] Connection refused` fordi
+`pypkjs` binder websocket-serveren til IPv6. Fiks ved å endre
+`pypkjs/runner/websocket.py` slik at `pywsgi.WSGIServer` binder `"0.0.0.0"` i
+stedet for `""`. Må gjentas etter hver reinstallasjon av `pebble-tool`.

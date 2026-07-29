@@ -3,43 +3,120 @@
 
 static Window *s_window;
 
-// Custom-drawn LCARS frame: elbow column, top date bar, decorative blocks.
-// TODO: implement drawing of the elbow (two stacked color blocks with a
-// rounded top-left corner) and the top bar in this layer's update_proc,
-// using LCARS_COLOR_* from lcars_theme.h and graphics_fill_rect with a
-// GCornerMask for the rounded corners.
+// Everything static — the elbow, the coloured bars, the label captions and the
+// light panel backgrounds — is painted here. Dynamic values sit on top in
+// transparent TextLayers.
 static Layer *s_frame_layer;
 
-// Light panel showing the time in large, bold, black text.
-// TODO: back this with a rounded-rect drawn layer (LCARS_COLOR_PANEL_BG)
-// plus a TextLayer for the "HH:MM" string, updated on MINUTE_UNIT ticks.
 static TextLayer *s_time_layer;
-
-// Light panel showing the date (weekday + day + month) in the top bar.
-// TODO: back with LCARS_COLOR_TOP_BAR label bar + black text.
 static TextLayer *s_date_layer;
+static TextLayer *s_readout_layer[READOUT_COUNT];
 
-// Secondary light panels: battery percentage and Bluetooth status.
-// TODO: subscribe to battery_state_service and connection_service, and
-// render each as a labeled light panel per the layout in PLAN.md.
-static TextLayer *s_battery_layer;
-static TextLayer *s_bluetooth_layer;
+static char s_time_buffer[8];
+static char s_date_buffer[16];
+static char s_readout_buffer[READOUT_COUNT][24];
+
+// Slot 0 and 1 are placeholders until weather (pkjs) and health land; slot 2 is
+// live today. Keeping all three wired up means adding data later is just a
+// matter of filling the buffer.
+static const char *const s_readout_label[READOUT_COUNT] = {
+  "SENSORS",
+  "VITALS",
+  "SYSTEMS",
+};
+
+static const GColor8 *readout_label_color(int i) {
+  static GColor8 colors[READOUT_COUNT];
+  colors[0] = LCARS_COLOR_LABEL_BAR;
+  colors[1] = LCARS_COLOR_LABEL_BAR_2;
+  colors[2] = LCARS_COLOR_LABEL_BAR_3;
+  return &colors[i];
+}
+
+static void draw_elbow(GContext *ctx) {
+  graphics_context_set_fill_color(ctx, LCARS_COLOR_ELBOW);
+
+  // Vertical arm and horizontal arm of the top-left elbow.
+  graphics_fill_rect(ctx, GRect(0, 0, ELBOW_W, ELBOW_UPPER_H),
+                     ELBOW_RADIUS, GCornerTopLeft);
+  graphics_fill_rect(ctx, GRect(0, 0, ELBOW_STUB_W, TOP_BAR_H),
+                     ELBOW_RADIUS, GCornerTopLeft);
+
+  // Carve the concave inner corner by painting the background back over it.
+  graphics_context_set_fill_color(ctx, LCARS_COLOR_BACKGROUND);
+  graphics_fill_rect(ctx, GRect(ELBOW_W, TOP_BAR_H,
+                                ELBOW_STUB_W - ELBOW_W, TOP_BAR_H),
+                     8, GCornerTopLeft);
+
+  // Lower segments of the column.
+  graphics_context_set_fill_color(ctx, LCARS_COLOR_ELBOW_LOWER);
+  graphics_fill_rect(ctx, GRect(0, ELBOW_LOWER_Y, ELBOW_W, ELBOW_LOWER_H),
+                     0, GCornerNone);
+
+  graphics_context_set_fill_color(ctx, LCARS_COLOR_ELBOW_FOOT);
+  graphics_fill_rect(ctx, GRect(0, ELBOW_FOOT_Y, ELBOW_W, ELBOW_FOOT_H),
+                     ELBOW_RADIUS, GCornerBottomLeft);
+}
+
+static void draw_readout_slot(GContext *ctx, int i) {
+  const int y = READOUT_Y(i);
+
+  // Coloured caption bar.
+  graphics_context_set_fill_color(ctx, *readout_label_color(i));
+  graphics_fill_rect(ctx, GRect(CONTENT_X, y, CONTENT_W, READOUT_LABEL_H),
+                     PANEL_RADIUS, GCornerTopLeft | GCornerTopRight);
+
+  graphics_context_set_text_color(ctx, LCARS_COLOR_LABEL_TEXT);
+  graphics_draw_text(ctx, s_readout_label[i],
+                     fonts_get_system_font(FONT_KEY_GOTHIC_14),
+                     GRect(CONTENT_X + 6, y - 3, CONTENT_W - 12, READOUT_LABEL_H + 4),
+                     GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
+
+  // Light data panel underneath.
+  graphics_context_set_fill_color(ctx, LCARS_COLOR_PANEL_BG);
+  graphics_fill_rect(ctx, GRect(CONTENT_X, y + READOUT_LABEL_H,
+                                CONTENT_W, READOUT_H - READOUT_LABEL_H),
+                     PANEL_RADIUS, GCornerBottomLeft | GCornerBottomRight);
+}
 
 static void frame_layer_update_proc(Layer *layer, GContext *ctx) {
-  // TODO: draw the elbow column and top bar per PLAN.md's layout.
   graphics_context_set_fill_color(ctx, LCARS_COLOR_BACKGROUND);
   graphics_fill_rect(ctx, layer_get_bounds(layer), 0, GCornerNone);
+
+  draw_elbow(ctx);
+
+  // Date bar, to the right of the elbow's horizontal arm.
+  graphics_context_set_fill_color(ctx, LCARS_COLOR_DATE_BAR);
+  graphics_fill_rect(ctx, GRect(DATE_BAR_X, 0, DATE_BAR_W, TOP_BAR_H),
+                     PANEL_RADIUS, GCornerBottomLeft);
+
+  // Light panel behind the clock.
+  graphics_context_set_fill_color(ctx, LCARS_COLOR_PANEL_BG);
+  graphics_fill_rect(ctx, GRect(CONTENT_X, TIME_PANEL_Y, CONTENT_W, TIME_PANEL_H),
+                     PANEL_RADIUS, GCornersAll);
+
+  for (int i = 0; i < READOUT_COUNT; i++) {
+    draw_readout_slot(ctx, i);
+  }
 }
 
 static void update_time(struct tm *tick_time) {
-  static char s_time_buffer[6];
   strftime(s_time_buffer, sizeof(s_time_buffer),
            clock_is_24h_style() ? "%H:%M" : "%I:%M", tick_time);
   text_layer_set_text(s_time_layer, s_time_buffer);
 
-  static char s_date_buffer[16];
   strftime(s_date_buffer, sizeof(s_date_buffer), "%a %d %b", tick_time);
   text_layer_set_text(s_date_layer, s_date_buffer);
+}
+
+// Slot 2 shows battery and Bluetooth together, so refresh it from one place.
+static void update_systems_readout(void) {
+  BatteryChargeState battery = battery_state_service_peek();
+  bool connected = connection_service_peek_pebble_app_connection();
+
+  snprintf(s_readout_buffer[2], sizeof(s_readout_buffer[2]), "%d%%   %s",
+           battery.charge_percent, connected ? "LINK" : "NO LINK");
+  text_layer_set_text(s_readout_layer[2], s_readout_buffer[2]);
 }
 
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
@@ -47,70 +124,71 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
 }
 
 static void battery_handler(BatteryChargeState charge_state) {
-  static char s_battery_buffer[8];
-  snprintf(s_battery_buffer, sizeof(s_battery_buffer), "%d%%", charge_state.charge_percent);
-  text_layer_set_text(s_battery_layer, s_battery_buffer);
+  update_systems_readout();
 }
 
 static void bluetooth_handler(bool connected) {
-  text_layer_set_text(s_bluetooth_layer, connected ? "BT" : "--");
+  update_systems_readout();
+}
+
+static TextLayer *make_panel_text(Layer *parent, GRect frame, const char *font_key,
+                                  GTextAlignment align) {
+  TextLayer *layer = text_layer_create(frame);
+  text_layer_set_background_color(layer, GColorClear);
+  text_layer_set_text_color(layer, LCARS_COLOR_PANEL_TEXT);
+  text_layer_set_font(layer, fonts_get_system_font(font_key));
+  text_layer_set_text_alignment(layer, align);
+  layer_add_child(parent, text_layer_get_layer(layer));
+  return layer;
 }
 
 static void window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
-  GRect bounds = layer_get_bounds(window_layer);
 
-  s_frame_layer = layer_create(bounds);
+  s_frame_layer = layer_create(layer_get_bounds(window_layer));
   layer_set_update_proc(s_frame_layer, frame_layer_update_proc);
   layer_add_child(window_layer, s_frame_layer);
 
-  // TODO: replace these placeholder frames with the panel positions from
-  // PLAN.md (main time panel, battery/Bluetooth panels side by side, date
-  // in the top bar), each with LCARS_COLOR_PANEL_BG behind it.
-  s_time_layer = text_layer_create(GRect(ELBOW_WIDTH, TOP_BAR_HEIGHT, bounds.size.w - ELBOW_WIDTH, 60));
-  text_layer_set_background_color(s_time_layer, LCARS_COLOR_PANEL_BG);
-  text_layer_set_text_color(s_time_layer, LCARS_COLOR_PANEL_TEXT);
-  text_layer_set_font(s_time_layer, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
-  text_layer_set_text_alignment(s_time_layer, GTextAlignmentCenter);
-  layer_add_child(window_layer, text_layer_get_layer(s_time_layer));
+  // Bitham 42 sits low in its box, so nudge the frame up to centre it.
+  s_time_layer = make_panel_text(window_layer,
+                                 GRect(CONTENT_X, TIME_PANEL_Y + 2, CONTENT_W, TIME_PANEL_H),
+                                 FONT_KEY_BITHAM_42_BOLD, GTextAlignmentCenter);
 
-  s_date_layer = text_layer_create(GRect(ELBOW_WIDTH, 0, bounds.size.w - ELBOW_WIDTH, TOP_BAR_HEIGHT));
-  text_layer_set_background_color(s_date_layer, LCARS_COLOR_TOP_BAR);
-  text_layer_set_text_color(s_date_layer, LCARS_COLOR_LABEL_TEXT);
-  text_layer_set_font(s_date_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD));
-  text_layer_set_text_alignment(s_date_layer, GTextAlignmentCenter);
-  layer_add_child(window_layer, text_layer_get_layer(s_date_layer));
+  s_date_layer = make_panel_text(window_layer,
+                                 GRect(DATE_BAR_X + 4, -1, DATE_BAR_W - 8, TOP_BAR_H + 4),
+                                 FONT_KEY_GOTHIC_18_BOLD, GTextAlignmentCenter);
 
-  s_battery_layer = text_layer_create(GRect(ELBOW_WIDTH, TOP_BAR_HEIGHT + 60, (bounds.size.w - ELBOW_WIDTH) / 2, 40));
-  text_layer_set_background_color(s_battery_layer, LCARS_COLOR_PANEL_BG_ALT);
-  text_layer_set_text_color(s_battery_layer, LCARS_COLOR_PANEL_TEXT);
-  text_layer_set_font(s_battery_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
-  text_layer_set_text_alignment(s_battery_layer, GTextAlignmentCenter);
-  layer_add_child(window_layer, text_layer_get_layer(s_battery_layer));
+  for (int i = 0; i < READOUT_COUNT; i++) {
+    const int data_y = READOUT_Y(i) + READOUT_LABEL_H;
+    s_readout_layer[i] = make_panel_text(
+        window_layer,
+        GRect(CONTENT_X + 6, data_y - 1, CONTENT_W - 12, READOUT_H - READOUT_LABEL_H + 4),
+        FONT_KEY_GOTHIC_24_BOLD, GTextAlignmentCenter);
+  }
 
-  s_bluetooth_layer = text_layer_create(GRect(ELBOW_WIDTH + (bounds.size.w - ELBOW_WIDTH) / 2, TOP_BAR_HEIGHT + 60, (bounds.size.w - ELBOW_WIDTH) / 2, 40));
-  text_layer_set_background_color(s_bluetooth_layer, LCARS_COLOR_PANEL_BG_ALT);
-  text_layer_set_text_color(s_bluetooth_layer, LCARS_COLOR_PANEL_TEXT);
-  text_layer_set_font(s_bluetooth_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
-  text_layer_set_text_alignment(s_bluetooth_layer, GTextAlignmentCenter);
-  layer_add_child(window_layer, text_layer_get_layer(s_bluetooth_layer));
+  // Reserved slots read as intentionally empty rather than broken.
+  snprintf(s_readout_buffer[0], sizeof(s_readout_buffer[0]), "--");
+  text_layer_set_text(s_readout_layer[0], s_readout_buffer[0]);
+  snprintf(s_readout_buffer[1], sizeof(s_readout_buffer[1]), "--");
+  text_layer_set_text(s_readout_layer[1], s_readout_buffer[1]);
 
   time_t now = time(NULL);
   update_time(localtime(&now));
-  battery_handler(battery_state_service_peek());
-  bluetooth_handler(connection_service_peek_pebble_app_connection());
+  update_systems_readout();
 }
 
 static void window_unload(Window *window) {
   text_layer_destroy(s_time_layer);
   text_layer_destroy(s_date_layer);
-  text_layer_destroy(s_battery_layer);
-  text_layer_destroy(s_bluetooth_layer);
+  for (int i = 0; i < READOUT_COUNT; i++) {
+    text_layer_destroy(s_readout_layer[i]);
+  }
   layer_destroy(s_frame_layer);
 }
 
 static void init(void) {
   s_window = window_create();
+  window_set_background_color(s_window, LCARS_COLOR_BACKGROUND);
   window_set_window_handlers(s_window, (WindowHandlers) {
     .load = window_load,
     .unload = window_unload,

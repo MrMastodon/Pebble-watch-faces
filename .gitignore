@@ -1,7 +1,11 @@
 # Pebble SDK build output
 build/
+.lock-waf_*
 *.pbw
 *.pbz
+
+# ...but the released build of each watchface is checked in under dist/
+!watchfaces/*/dist/*.pbw
 
 # Node
 node_modules/

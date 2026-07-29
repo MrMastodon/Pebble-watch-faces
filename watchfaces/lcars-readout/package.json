@@ -7,7 +7,7 @@
   "dependencies": {},
   "pebble": {
     "displayName": "LCARS Readout",
-    "uuid": "00000000-0000-0000-0000-000000000000",
+    "uuid": "c5b28b21-c964-45e1-89ae-f9dff105b461",
     "sdkVersion": "3",
     "targetPlatforms": [
       "emery"
