@@ -1,8 +1,10 @@
 {
   "name": "lcars-readout",
   "author": "",
-  "version": "0.1.0",
-  "keywords": ["pebble-app"],
+  "version": "0.2.0",
+  "keywords": [
+    "pebble-app"
+  ],
   "private": true,
   "dependencies": {},
   "pebble": {
@@ -15,9 +17,82 @@
     "watchapp": {
       "watchface": true
     },
-    "messageKeys": [],
+    "capabilities": [
+      "location",
+      "health"
+    ],
+    "messageKeys": [
+      "CONDITION",
+      "TEMPERATURE"
+    ],
     "resources": {
-      "media": []
+      "media": [
+        {
+          "type": "font",
+          "name": "FONT_ANTONIO_58",
+          "file": "fonts/Antonio-Bold.ttf",
+          "characterRegex": "[0-9:]"
+        },
+        {
+          "type": "font",
+          "name": "FONT_ANTONIO_30",
+          "file": "fonts/Antonio-Bold.ttf",
+          "characterRegex": "[0-9.]"
+        },
+        {
+          "type": "font",
+          "name": "FONT_ANTONIO_22",
+          "file": "fonts/Antonio-Bold.ttf",
+          "characterRegex": "[0-9A-Z%\u00b0.:-]"
+        },
+        {
+          "type": "font",
+          "name": "FONT_ANTONIO_16",
+          "file": "fonts/Antonio-Bold.ttf",
+          "characterRegex": "[0-9%]"
+        },
+        {
+          "type": "font",
+          "name": "FONT_ANTONIO_14",
+          "file": "fonts/Antonio-Bold.ttf",
+          "characterRegex": "[A-Z ]"
+        },
+        {
+          "type": "bitmap",
+          "name": "ICON_CLEAR",
+          "file": "images/icon_clear.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "ICON_CLOUD",
+          "file": "images/icon_cloud.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "ICON_RAIN",
+          "file": "images/icon_rain.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "ICON_SNOW",
+          "file": "images/icon_snow.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "ICON_TEMP",
+          "file": "images/icon_temp.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "ICON_HEART",
+          "file": "images/icon_heart.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "ICON_STEPS",
+          "file": "images/icon_steps.png"
+        }
+      ]
     }
   }
 }

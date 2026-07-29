@@ -24,8 +24,9 @@ watchfaces/
 ## Watchfaces
 
 - [`watchfaces/lcars-readout`](watchfaces/lcars-readout) — LCARS-inspirert
-  urskive med lyse avlesningspaneler (svart tekst på lys bunn) for bedre
-  lesbarhet enn klassisk LCARS lys-på-mørk.
+  urskive med lys bakgrunn og svarte tall, for bedre lesbarhet enn klassisk
+  LCARS lys-på-mørk. Klokke, dato, vær, puls, skritt, batteri og
+  tilkoblingsstatus.
 
 ## Bygg
 

@@ -1,93 +1,110 @@
 # LCARS Readout — design og status
 
-![Skjermbilde fra emery-emulatoren](screenshot.png)
+| Slik den ser ut nå (emulator) | Med vær- og helsedata til stede |
+|---|---|
+| ![](screenshot.png) | ![](screenshot-with-data.png) |
+
+Venstre bilde er tatt rett fra emulatoren. Emulatoren har ingen posisjons-
+kilde og ingen helsedata, så vær, puls og skritt står som `--`/`0`. Høyre
+bilde er samme bygg med verdiene fylt inn manuelt, for å vise hvordan det ser
+ut på klokka når telefonen er tilkoblet.
 
 ## Konsept
 
-Et LCARS-inspirert (Star Trek) watchface for Pebble Time 2 (Emery,
-200×228 px, farge). Rammen — elbow-kolonnen til venstre og de fargede
-etikettbarene — beholder den klassiske, mørke, fargerike LCARS-stilen, men
-alle **avlesningsfelt** vises som **svart tekst på lyse paneler**. Det gir
-langt bedre lesbarhet enn tradisjonell LCARS (lys tekst på mørk bunn), som
-var hele motivasjonen for dette watchfacet.
+LCARS-inspirert urskive for Pebble Time 2 (Emery, 200×228 px, farge), bygget
+etter en mockup fra brukeren. Lys bakgrunn, svarte tall og pastellfargede
+LCARS-former — det motsatte av klassisk LCARS, og hele poenget: tallene skal
+være lette å lese i dagslys på en reflektiv skjerm.
 
-Inspirert av LCARS-designtradisjonen generelt og av layout-ideene i
-`AKlitbo/pebble-watchfaces` sin "LCARS Stardate" — men all kode her er
-egenutviklet. Det prosjektet er lisensiert PolyForm Noncommercial og er ikke
-fritt gjenbrukbart, så ingenting derfra er kopiert.
+Inspirert av LCARS-tradisjonen generelt og av layout-ideene i
+`AKlitbo/pebble-watchfaces`. All kode her er egenutviklet — det prosjektet er
+lisensiert PolyForm Noncommercial og ingenting derfra er kopiert.
 
 ## Layout (200×228)
 
+Venstre skinne `x 2..48`, innholdskolonne `x 52..198`.
+
 ```
-┌────────┬──────────────────┐
-│▓▓▓▓▓▓▓▓│  ONS 29 JUL      │ y 0–22    elbow-arm + gull datobar
-│▓▓┐     └──────────────────┤
-│▓▓│  ┌────────────────────┐│
-│▓▓│  │      16:38         ││ y 26–84   lyst panel, stor svart tekst
-│▓▓│  └────────────────────┘│
-│▓▓│  ┌SENSORS─────────────┐│ y 88–130  reservert (vær)
-│▓▓│  │        --          ││
-│  │  ├VITALS──────────────┤│ y 134–176 reservert (puls/skritt)
-│░░│  │        --          ││
-│░░│  ├SYSTEMS─────────────┤│ y 180–222 LIVE (batteri + BT)
-│░░│  │  100%   LINK       ││
-│▒▒│  └────────────────────┘│
-└──┴────────────────────────┘
- ▓ oransje   ░ fiolett   ▒ rose
+ y   2..16   [lys blokk]           │ ▐ TIME ▬▬▬▬▬▬▬▬▬▬▬ ▌
+ y  18..90   [blå elbow, L]        │ 17:54            (Antonio 58)
+             arm y 78..90 → x 96   │ segmentskinne y 80..90
+ y  94..138  [rose elbow, Γ]       │ STARDATE ▮ ▬▬▬▬▬ ▌
+             arm y 94..106 → x 66  │ 29.07.2026       (Antonio 30)
+ y 140..172  [LINK ACTIVE]         │ ▐SENSORS▬▌   ▐VITALS▬▌
+                                   │ ☀ CLEAR      ♥ 64
+ y 174..196  [rød dekorblokk]      │              ▐TRAVERSAL▌
+ y 198..226  [batteri %]           │ 🌡 18°C      👣 8432
 ```
 
-- **Elbow-kolonnen** (40 px bred) er en ekte LCARS-elbow: vertikal arm pluss
-  en horisontal arm øverst, der den konkave innerkurven "skjæres ut" ved å
-  male bakgrunnsfargen tilbake over hjørnet med en avrundet rektangel.
-  Kolonnen er segmentert nedover i oransje → fiolett → rose.
-- **Tre readout-slots**, definert av `READOUT_COUNT` og posisjonert med
-  `READOUT_Y(i)`-makroen i `lcars_theme.h`. Alle tre er fullt wiret opp med
-  egen fargekodet etikettbar, lyst datapanel, `TextLayer` og tekstbuffer.
-  Slot 0 og 1 viser `--` inntil de får data — å ta dem i bruk er da bare å
-  fylle riktig buffer.
+Begge elbows tegnes av `lcars_elbow_top()` / `lcars_elbow_bottom()` i
+`src/c/lcars_draw.c`: vertikal arm + horisontal arm, der den konkave
+innerkurven skjæres ut ved å male bakgrunnsfargen tilbake med en avrundet
+rektangel i innerhjørnet.
 
-## Fargepalett
+Alle fem header-rader (`TIME`, `STARDATE`, `SENSORS`, `VITALS`, `TRAVERSAL`)
+kommer fra én `lcars_header()`. Den måler etikettbredden med
+`graphics_text_layout_get_content_size()` og fyller resten med bar + endekapsel
+— og dropper baren automatisk når etiketten ikke levner plass (som på
+`TRAVERSAL`). `STARDATE` bruker varianten uten ledende pill, så den rose
+elbow-armen får løpe inn i etiketten slik mockupen viser.
 
-Alle farger er fra Pebbles 64-fargepalett. Merk at Emery-skjermen er
-reflektiv, så fargene fremstår mer dempede på klokka (og i emulatoren) enn
-hex-verdiene tilsier.
+## Palett
 
-| Bruk                 | GColor                  |
-|----------------------|--------------------------|
-| Elbow øvre arm         | `GColorOrange`          |
-| Elbow midtseksjon       | `GColorVividViolet`     |
-| Elbow fot                | `GColorRoseVale`       |
-| Datobar                   | `GColorChromeYellow`  |
-| Etikett SENSORS            | `GColorRoseVale`     |
-| Etikett VITALS              | `GColorLavenderIndigo` |
-| Etikett SYSTEMS              | `GColorChromeYellow` |
-| Alle datapaneler              | `GColorWhite`       |
-| All tekst                      | `GColorBlack`      |
+| Element | GColor |
+|---|---|
+| Bakgrunn | `GColorWhite` |
+| Lyse fyllbarer, toppblokk | `GColorBabyBlueEyes` |
+| Pills og endekapsler | `GColorLavenderIndigo` |
+| Øvre elbow | `GColorPictonBlue` |
+| Nedre elbow, LINK-blokk | `GColorRoseVale` |
+| Rød dekorblokk | `GColorSunsetOrange` |
+| Batteriblokk | `GColorRajah` |
+| All tekst | `GColorBlack` |
 
-## Status
-
-**Implementert og bygget (MVP):**
-- Klokkeslett, oppdatert per minutt (`MINUTE_UNIT` — ikke sekund, av hensyn
-  til batteri). Respekterer 12/24-timers systeminnstilling.
-- Dato i toppbaren (ukedag, dag, måned).
-- SYSTEMS-slot: batteriprosent og Bluetooth-status (`LINK` / `NO LINK`),
-  oppdatert via `battery_state_service` og `connection_service`.
-
-**Reservert, ikke implementert ennå:**
-- SENSORS-slot: værdata via PebbleKit JS (Open-Meteo, ingen API-nøkkel).
-  Krever `src/pkjs/index.js` og `messageKeys` i `package.json`.
-- VITALS-slot: puls og/eller skritt via `HealthService`
-  (`HealthMetricHeartRateBPM`, `HealthMetricStepCount`).
-- Egen font (Antonio, SIL OFL) i stedet for systemfontene.
-- Flere fargetema via Clay-innstillinger.
-- Vibrasjon på hel time.
+Fargene ser mer dempet ut på klokka enn hex-verdiene tilsier — Emery-skjermen
+er reflektiv, og emulatoren simulerer det.
 
 ## Typografi
 
-Bruker foreløpig Pebbles innebygde fonter: `BITHAM_42_BOLD` for klokkeslett,
-`GOTHIC_18_BOLD` for dato, `GOTHIC_24_BOLD` for verdier og `GOTHIC_14` for
-etiketter. Antonio (Google Fonts, SIL OFL) er et aktuelt bytte senere — se
-`resources/README.md`.
+**Antonio** (Google Fonts, SIL Open Font License — `resources/fonts/OFL.txt`),
+i fem størrelser. Den kondenserte formen er det som gjør at `22.06.2026` i det
+hele tatt får plass i en 146 px kolonne. Hver størrelse er begrenset med
+`characterRegex` til akkurat de tegnene den bruker, så alle fem til sammen
+veier under 15 KB.
+
+| Ressurs | Bruk | Tegn |
+|---|---|---|
+| `FONT_ANTONIO_58` | klokkeslett | `[0-9:]` |
+| `FONT_ANTONIO_30` | dato | `[0-9.]` |
+| `FONT_ANTONIO_22` | avlesningsverdier | `[0-9A-Z%°.:-]` |
+| `FONT_ANTONIO_16` | batteriprosent | `[0-9%]` |
+| `FONT_ANTONIO_14` | etiketter | `[A-Z ]` |
+
+## Ikoner
+
+Sju 18×18 px sort-på-transparent PNG-er, tegnet med `GCompOpSet`. De
+genereres av `tools/make_icons.py` (tegnes 8× opp og terskles ned, ellers
+blir kantene grøtete i denne størrelsen) — kjør `python3 tools/make_icons.py`
+for å regenerere.
+
+## Datakilder
+
+| Felt | Kilde | Status |
+|---|---|---|
+| Tid, dato | `tick_timer_service` (MINUTE_UNIT) | live |
+| Batteri | `battery_state_service` | live |
+| LINK ACTIVE / LOST | `connection_service` | live |
+| Puls, skritt | `HealthService` | live på klokka, tomt i emulator |
+| Vær | `src/pkjs/index.js` → Open-Meteo | krever telefon med posisjon |
+
+Værhentingen bruker Open-Meteo, som ikke krever API-nøkkel, og henter hver
+30. minutt. Siste måling lagres med `persist_write_int`, så den overlever en
+omstart av urskiven i stedet for å blanke ut. Felter uten data viser `--`.
+
+**Ikke verifisert på fysisk klokke:** vær-, puls- og skrittverdiene er kun
+testet i emulatoren, der de to siste er tomme og været ikke kan hentes (ingen
+posisjonskilde). Selve mottakssiden i C og render-veien er verifisert ved å
+fylle inn verdier manuelt — se høyre skjermbilde over.
 
 ## Bygg
 
@@ -97,15 +114,16 @@ pebble build                      # -> build/lcars-readout.pbw
 pebble install --emulator emery   # krever X-display
 ```
 
-Sist bygde `.pbw` er sjekket inn under `dist/lcars-readout.pbw` og kan
-installeres direkte på klokka via Pebble-telefonappen.
+Sist bygde `.pbw` ligger i `dist/lcars-readout.pbw` og kan installeres direkte
+på klokka via Pebble-telefonappen.
 
 Bygget med `pebble-tool` 5.0.39 og Pebble SDK 4.17, target `emery`.
-Minneforbruk: 2332 byte RAM, 4092 byte ressurser — god plass til utvidelser.
+Ressurser 14 383 B / 256 KB, RAM 4 713 B / 128 KB.
 
 ### Fallgruve på Linux uten IPv6
 
 `pebble install --emulator` feiler med `[Errno 111] Connection refused` fordi
 `pypkjs` binder websocket-serveren til IPv6. Fiks ved å endre
-`pypkjs/runner/websocket.py` slik at `pywsgi.WSGIServer` binder `"0.0.0.0"` i
-stedet for `""`. Må gjentas etter hver reinstallasjon av `pebble-tool`.
+`pywsgi.WSGIServer(("", self.port), ...)` til `("0.0.0.0", self.port)` i
+`pypkjs/runner/websocket.py`. Må gjentas etter hver reinstallasjon av
+`pebble-tool`.
