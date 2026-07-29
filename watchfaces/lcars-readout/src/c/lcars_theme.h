@@ -98,7 +98,7 @@
 #define RO_ROW2_Y 191
 #define RO_ROW_H  24
 
-#define ICON_SZ 18
+#define ICON_SZ 20
 
 // ---------------------------------------------------------------------------
 // Weather condition codes exchanged with the phone (our own enum, mapped from

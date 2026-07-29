@@ -1,139 +1,106 @@
 #!/usr/bin/env python3
-"""Generate the watchface's icon set as 1-bit black-on-transparent PNGs.
+"""Build the watchface's icon set from Material Symbols (Apache-2.0).
 
-Each icon is drawn 4x oversized and downsampled with a hard threshold, which
-keeps the edges crisp instead of muddy at 18x18 — Pebble renders these with
-GCompOpSet, so any grey fringe would show up as speckle.
+Material Symbols ships SVG only, so each glyph is rasterised well above target
+size, cropped to its ink, then downsampled with a hard alpha threshold. The
+threshold matters: Pebble draws these with GCompOpSet, so any antialiased grey
+fringe would land on the watch as speckle.
 
-Run from the project root:  python3 tools/make_icons.py
+The SVGs are checked in under resources/images/src/, so re-running this needs
+no network. Pass --download to refresh them from upstream.
+
+    python3 tools/make_icons.py [--download]
 """
 
+import argparse
+import io
 import os
-from PIL import Image, ImageDraw
+import urllib.request
 
-S = 18          # final icon size
-F = 8           # oversampling factor
-BIG = S * F
-OUT = os.path.join(os.path.dirname(__file__), "..", "resources", "images")
+import cairosvg
+from PIL import Image
 
+SIZE = 20        # final icon size, matches ICON_SZ in src/c/lcars_theme.h
+RENDER = 512     # rasterise this big before downsampling
 BLACK = (0, 0, 0, 255)
 
+HERE = os.path.dirname(os.path.abspath(__file__))
+IMAGES = os.path.join(HERE, "..", "resources", "images")
+SRC = os.path.join(IMAGES, "src")
 
-def canvas():
-    im = Image.new("RGBA", (BIG, BIG), (0, 0, 0, 0))
-    return im, ImageDraw.Draw(im)
+BASE = ("https://raw.githubusercontent.com/google/material-design-icons/"
+        "master/symbols/web/{name}/materialsymbolsrounded/{name}_fill1_24px.svg")
 
-
-def px(v):
-    """Convert an 18px-space coordinate to oversampled space."""
-    return v * F
-
-
-def circle(d, cx, cy, r, fill=BLACK, width=0, outline=None):
-    d.ellipse([px(cx - r), px(cy - r), px(cx + r), px(cy + r)],
-              fill=fill, outline=outline, width=width)
-
-
-def sun():
-    im, d = canvas()
-    circle(d, 9, 9, 3.6)
-    # Eight rays around the disc.
-    import math
-    for i in range(8):
-        a = math.radians(i * 45)
-        x0, y0 = 9 + 5.2 * math.cos(a), 9 + 5.2 * math.sin(a)
-        x1, y1 = 9 + 8.0 * math.cos(a), 9 + 8.0 * math.sin(a)
-        d.line([px(x0), px(y0), px(x1), px(y1)], fill=BLACK, width=int(1.5 * F))
-    return im
-
-
-def cloud():
-    im, d = canvas()
-    circle(d, 6.2, 9.5, 3.4)
-    circle(d, 10.4, 8.4, 4.3)
-    circle(d, 13.4, 10.4, 3.0)
-    d.rectangle([px(6.2), px(10.0), px(13.4), px(13.4)], fill=BLACK)
-    return im
-
-
-def rain():
-    im, d = canvas()
-    circle(d, 6.2, 7.6, 3.0)
-    circle(d, 10.2, 6.6, 3.8)
-    circle(d, 12.9, 8.3, 2.7)
-    d.rectangle([px(6.2), px(7.9), px(12.9), px(10.6)], fill=BLACK)
-    for x in (6.0, 9.2, 12.4):
-        d.line([px(x), px(12.4), px(x - 1.4), px(15.8)], fill=BLACK, width=int(1.4 * F))
-    return im
-
-
-def snow():
-    im, d = canvas()
-    circle(d, 6.2, 7.6, 3.0)
-    circle(d, 10.2, 6.6, 3.8)
-    circle(d, 12.9, 8.3, 2.7)
-    d.rectangle([px(6.2), px(7.9), px(12.9), px(10.6)], fill=BLACK)
-    for x in (6.2, 9.4, 12.6):
-        circle(d, x, 14.2, 1.2)
-    return im
-
-
-def thermometer():
-    im, d = canvas()
-    # Solid silhouette — an outlined bulb loses its shape once downsampled.
-    d.rounded_rectangle([px(6.9), px(1.8), px(11.1), px(12.6)],
-                        radius=px(2.1), fill=BLACK)
-    circle(d, 9, 13.4, 4.0)
-    return im
-
-
-def heart():
-    im, d = canvas()
-    circle(d, 5.9, 6.6, 3.5)
-    circle(d, 12.1, 6.6, 3.5)
-    d.polygon([(px(2.5), px(7.6)), (px(15.5), px(7.6)), (px(9), px(16.2))], fill=BLACK)
-    return im
-
-
-def steps():
-    im, d = canvas()
-
-    # Two staggered prints, each a tilted sole with its toe pad tucked close
-    # against it. Separate toe circles read as mushrooms at this size.
-    def print_at(cx, cy, tilt):
-        foot = Image.new("RGBA", (BIG, BIG), (0, 0, 0, 0))
-        fd = ImageDraw.Draw(foot)
-        # One fat oval per print — anything narrower thins out to a comma once
-        # rotated and thresholded down to 18px.
-        fd.ellipse([px(cx - 3.0), px(cy - 5.2), px(cx + 3.0), px(cy + 5.2)], fill=BLACK)
-        return foot.rotate(tilt, resample=Image.BICUBIC, center=(px(cx), px(cy)))
-
-    im.alpha_composite(print_at(4.8, 11.6, 14))
-    im.alpha_composite(print_at(13.2, 6.4, -14))
-    return im
-
-
+# icon_*.png  ->  Material Symbols glyph name
 ICONS = {
-    "icon_clear": sun,
-    "icon_cloud": cloud,
-    "icon_rain": rain,
-    "icon_snow": snow,
-    "icon_temp": thermometer,
-    "icon_heart": heart,
-    "icon_steps": steps,
+    "icon_clear": "sunny",
+    "icon_cloud": "cloud",
+    "icon_rain": "rainy",
+    "icon_snow": "weather_snowy",
+    # device_thermostat, not thermostat: the latter carries tick marks that
+    # widen its bounding box and shove the bulb off-centre at this size.
+    "icon_temp": "device_thermostat",
+    "icon_heart": "favorite",
+    "icon_steps": "footprint",
 }
 
 
+def download():
+    os.makedirs(SRC, exist_ok=True)
+    for glyph in sorted(set(ICONS.values())):
+        url = BASE.format(name=glyph)
+        dest = os.path.join(SRC, glyph + ".svg")
+        with urllib.request.urlopen(url) as r:
+            data = r.read()
+        with open(dest, "wb") as f:
+            f.write(data)
+        print("fetched", glyph)
+
+
+def render(glyph):
+    svg = os.path.join(SRC, glyph + ".svg")
+    png = cairosvg.svg2png(url=svg, output_width=RENDER, output_height=RENDER)
+    return Image.open(io.BytesIO(png)).convert("RGBA")
+
+
+def fit(im):
+    """Crop to the glyph's ink and scale it to fill SIZE, keeping aspect.
+
+    Material Symbols carry ~2px of padding inside their 24px viewBox. Cropping
+    it away buys roughly 15% more ink at this size, which is the difference
+    between the footprints reading as shoes and reading as blobs.
+    """
+    box = im.getchannel("A").getbbox()
+    im = im.crop(box)
+
+    scale = SIZE / max(im.width, im.height)
+    w, h = max(1, round(im.width * scale)), max(1, round(im.height * scale))
+    im = im.resize((w, h), Image.LANCZOS)
+
+    out = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+    out.paste(im, ((SIZE - w) // 2, (SIZE - h) // 2))
+    return out
+
+
+def threshold(im):
+    out = Image.new("RGBA", im.size, (0, 0, 0, 0))
+    out.putdata([BLACK if a >= 128 else (0, 0, 0, 0)
+                 for a in im.getchannel("A").getdata()])
+    return out
+
+
 def main():
-    os.makedirs(OUT, exist_ok=True)
-    for name, fn in ICONS.items():
-        im = fn().resize((S, S), Image.LANCZOS)
-        # Hard threshold: anything at least half-opaque becomes solid black.
-        out = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-        out.putdata([BLACK if p[3] >= 128 else (0, 0, 0, 0) for p in im.getdata()])
-        path = os.path.join(OUT, name + ".png")
-        out.save(path)
-        print("wrote", os.path.relpath(path))
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--download", action="store_true",
+                    help="refetch the SVGs from upstream before rendering")
+    args = ap.parse_args()
+
+    if args.download or not os.path.isdir(SRC):
+        download()
+
+    for name, glyph in ICONS.items():
+        threshold(fit(render(glyph))).save(os.path.join(IMAGES, name + ".png"))
+        print("wrote", name + ".png", "<-", glyph)
 
 
 if __name__ == "__main__":

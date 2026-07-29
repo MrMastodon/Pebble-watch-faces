@@ -82,10 +82,19 @@ veier under 15 KB.
 
 ## Ikoner
 
-Sju 18×18 px sort-på-transparent PNG-er, tegnet med `GCompOpSet`. De
-genereres av `tools/make_icons.py` (tegnes 8× opp og terskles ned, ellers
-blir kantene grøtete i denne størrelsen) — kjør `python3 tools/make_icons.py`
-for å regenerere.
+Sju 20×20 px sort-på-transparent PNG-er fra **Material Symbols** (Google,
+**Apache-2.0** — lisenstekst i `resources/images/LICENSE-material-symbols.txt`).
+Apache-2.0 krever bare at lisensteksten følger med, ikke synlig kreditering i
+appen.
+
+Kilde-SVG-ene ligger i `resources/images/src/`, og PNG-ene bygges av
+`tools/make_icons.py`: hver SVG rasteriseres stort, beskjæres til selve
+figuren og skaleres ned med hard terskel — nødvendig fordi Pebble tegner dem
+med `GCompOpSet`, så antialiaserte gråtoner ville blitt støy.
+
+Termometeret bruker `device_thermostat`, ikke `thermostat`: sistnevnte har
+skalastreker som utvider omrisset og dytter kolben ut av senter i denne
+størrelsen.
 
 ## Datakilder
 
@@ -118,7 +127,7 @@ Sist bygde `.pbw` ligger i `dist/lcars-readout.pbw` og kan installeres direkte
 på klokka via Pebble-telefonappen.
 
 Bygget med `pebble-tool` 5.0.39 og Pebble SDK 4.17, target `emery`.
-Ressurser 14 383 B / 256 KB, RAM 4 713 B / 128 KB.
+Ressurser 14 459 B / 256 KB, RAM 4 713 B / 128 KB.
 
 ### Fallgruve på Linux uten IPv6
 

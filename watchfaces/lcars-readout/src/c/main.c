@@ -42,7 +42,7 @@ static void draw_value(GContext *ctx, int x, int y, int w, GBitmap *icon,
     graphics_context_set_compositing_mode(ctx, GCompOpSet);
     graphics_draw_bitmap_in_rect(ctx, icon, GRect(x, y + 3, ICON_SZ, ICON_SZ));
   }
-  const int tx = x + ICON_SZ + 4;
+  const int tx = x + ICON_SZ + 2;
   graphics_context_set_text_color(ctx, C_TEXT);
   graphics_draw_text(ctx, text, s_font_value, GRect(tx, y - 3, w - (tx - x), RO_ROW_H + 6),
                      GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
