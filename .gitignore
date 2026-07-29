@@ -1,0 +1,13 @@
+# Pebble SDK build output
+build/
+*.pbw
+*.pbz
+
+# Node
+node_modules/
+
+# Pebble tool
+.pebble-tool-cache/
+
+# OS
+.DS_Store

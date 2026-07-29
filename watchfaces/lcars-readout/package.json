@@ -1,0 +1,23 @@
+{
+  "name": "lcars-readout",
+  "author": "",
+  "version": "0.1.0",
+  "keywords": ["pebble-app"],
+  "private": true,
+  "dependencies": {},
+  "pebble": {
+    "displayName": "LCARS Readout",
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "sdkVersion": "3",
+    "targetPlatforms": [
+      "emery"
+    ],
+    "watchapp": {
+      "watchface": true
+    },
+    "messageKeys": [],
+    "resources": {
+      "media": []
+    }
+  }
+}
