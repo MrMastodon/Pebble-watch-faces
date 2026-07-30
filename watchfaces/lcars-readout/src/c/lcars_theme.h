@@ -90,11 +90,20 @@
 typedef enum {
   COND_UNKNOWN = 0,
   COND_CLEAR   = 1,
-  COND_CLOUD   = 2,
-  COND_RAIN    = 3,
-  COND_SNOW    = 4,
+  COND_PARTLY  = 2,
+  COND_CLOUD   = 3,
+  COND_FOG     = 4,
+  COND_DRIZZLE = 5,
+  COND_RAIN    = 6,
+  COND_FZRAIN  = 7,
+  COND_SNOW    = 8,
+  COND_SHOWERS = 9,
+  COND_SNOWSH  = 10,
+  COND_STORM   = 11,
+  COND_LAST_REAL = COND_STORM,
   // Failure states from the phone, so an empty readout can be told apart from
-  // a broken one when debugging on the wrist.
-  COND_NO_LOCATION = 5,
-  COND_NO_NET      = 6,
+  // a broken one when debugging on the wrist. Numbered clear of the real
+  // conditions so those can grow without colliding.
+  COND_NO_LOCATION = 90,
+  COND_NO_NET      = 91,
 } WeatherCondition;

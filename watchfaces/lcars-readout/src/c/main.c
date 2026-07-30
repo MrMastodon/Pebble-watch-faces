@@ -13,9 +13,14 @@ static GFont s_font_batt;
 
 static GBitmap *s_icon_cond;   // points at whichever weather icon is current
 static GBitmap *s_icon_clear;
+static GBitmap *s_icon_clear_n;
+static GBitmap *s_icon_partly;
+static GBitmap *s_icon_partly_n;
 static GBitmap *s_icon_cloud;
+static GBitmap *s_icon_fog;
 static GBitmap *s_icon_rain;
 static GBitmap *s_icon_snow;
+static GBitmap *s_icon_storm;
 
 static char s_time_text[8];
 static char s_date_text[12];
@@ -26,12 +31,14 @@ static char s_hr_text[8];
 static char s_steps_text[8];
 
 static int s_cond_code = COND_UNKNOWN;
+static bool s_is_day = true;
 static bool s_connected;
 
 // Persisted so the last weather reading survives a watchface reload rather
 // than blanking out until the phone answers again.
 #define PKEY_COND 1
 #define PKEY_TEMP 2
+#define PKEY_DAY  3
 
 // Antonio sits low in its line box, so every field is nudged up a little.
 static void draw_text(GContext *ctx, const char *text, GFont font,
@@ -78,16 +85,46 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
 // Data
 // ---------------------------------------------------------------------------
 
+// Abbreviations are chosen by measured width, not letter count: the readout
+// column is 49px at Antonio 22, and W is far wider than the average cap, so
+// SHWRS (53px) and SNSHW (54px) overflowed while five-letter CLEAR (46px) is
+// fine. tools/measure_text.py checks a candidate before it ships.
+//
+// The icon is the at-a-glance cue; the text is what actually distinguishes
+// drizzle from freezing rain.
 static void apply_condition(int code) {
   s_cond_code = code;
   switch (code) {
-    case COND_CLEAR: s_icon_cond = s_icon_clear; strcpy(s_cond_text, "CLEAR"); break;
-    case COND_CLOUD: s_icon_cond = s_icon_cloud; strcpy(s_cond_text, "CLOUD"); break;
-    case COND_RAIN:  s_icon_cond = s_icon_rain;  strcpy(s_cond_text, "RAIN");  break;
-    case COND_SNOW:  s_icon_cond = s_icon_snow;  strcpy(s_cond_text, "SNOW");  break;
-    case COND_NO_LOCATION: s_icon_cond = NULL;   strcpy(s_cond_text, "GPS?");  break;
-    case COND_NO_NET:      s_icon_cond = NULL;   strcpy(s_cond_text, "NET?");  break;
-    default:         s_icon_cond = NULL;         strcpy(s_cond_text, "--");    break;
+    case COND_CLEAR:
+      s_icon_cond = s_is_day ? s_icon_clear : s_icon_clear_n;
+      strcpy(s_cond_text, "CLEAR"); break;
+    case COND_PARTLY:
+      s_icon_cond = s_is_day ? s_icon_partly : s_icon_partly_n;
+      strcpy(s_cond_text, "PTCLD"); break;
+    case COND_CLOUD:
+      s_icon_cond = s_icon_cloud; strcpy(s_cond_text, "CLDY"); break;
+    case COND_FOG:
+      s_icon_cond = s_icon_fog;   strcpy(s_cond_text, "FOG");   break;
+    case COND_DRIZZLE:
+      s_icon_cond = s_icon_rain;  strcpy(s_cond_text, "DRIZL"); break;
+    case COND_RAIN:
+      s_icon_cond = s_icon_rain;  strcpy(s_cond_text, "RAIN");  break;
+    case COND_FZRAIN:
+      s_icon_cond = s_icon_rain;  strcpy(s_cond_text, "FZRN");  break;
+    case COND_SNOW:
+      s_icon_cond = s_icon_snow;  strcpy(s_cond_text, "SNOW");  break;
+    case COND_SHOWERS:
+      s_icon_cond = s_icon_rain;  strcpy(s_cond_text, "SHWR"); break;
+    case COND_SNOWSH:
+      s_icon_cond = s_icon_snow;  strcpy(s_cond_text, "SNSH"); break;
+    case COND_STORM:
+      s_icon_cond = s_icon_storm; strcpy(s_cond_text, "STRM"); break;
+    case COND_NO_LOCATION:
+      s_icon_cond = NULL;         strcpy(s_cond_text, "GPS?");  break;
+    case COND_NO_NET:
+      s_icon_cond = NULL;         strcpy(s_cond_text, "NET?");  break;
+    default:
+      s_icon_cond = NULL;         strcpy(s_cond_text, "--");    break;
   }
 }
 
@@ -156,13 +193,19 @@ static void health_handler(HealthEventType event, void *context) {
 static void inbox_received(DictionaryIterator *iter, void *context) {
   Tuple *cond = dict_find(iter, MESSAGE_KEY_CONDITION);
   Tuple *temp = dict_find(iter, MESSAGE_KEY_TEMPERATURE);
+  Tuple *day  = dict_find(iter, MESSAGE_KEY_IS_DAY);
 
+  // Read the day flag first so apply_condition() picks the right variant.
+  if (day) {
+    s_is_day = day->value->int32 != 0;
+    persist_write_bool(PKEY_DAY, s_is_day);
+  }
   if (cond) {
     int code = (int)cond->value->int32;
     apply_condition(code);
     // Only remember real readings — a failure state should not come back after
     // a reload and masquerade as the current weather.
-    if (code >= COND_CLEAR && code <= COND_SNOW) {
+    if (code >= COND_CLEAR && code <= COND_LAST_REAL) {
       persist_write_int(PKEY_COND, code);
     }
   }
@@ -183,10 +226,15 @@ static void window_load(Window *window) {
   s_font_value = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_ANTONIO_22));
   s_font_batt  = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_ANTONIO_16));
 
-  s_icon_clear = gbitmap_create_with_resource(RESOURCE_ID_ICON_CLEAR);
-  s_icon_cloud = gbitmap_create_with_resource(RESOURCE_ID_ICON_CLOUD);
-  s_icon_rain  = gbitmap_create_with_resource(RESOURCE_ID_ICON_RAIN);
-  s_icon_snow  = gbitmap_create_with_resource(RESOURCE_ID_ICON_SNOW);
+  s_icon_clear    = gbitmap_create_with_resource(RESOURCE_ID_ICON_CLEAR);
+  s_icon_clear_n  = gbitmap_create_with_resource(RESOURCE_ID_ICON_CLEAR_N);
+  s_icon_partly   = gbitmap_create_with_resource(RESOURCE_ID_ICON_PARTLY);
+  s_icon_partly_n = gbitmap_create_with_resource(RESOURCE_ID_ICON_PARTLY_N);
+  s_icon_cloud    = gbitmap_create_with_resource(RESOURCE_ID_ICON_CLOUD);
+  s_icon_fog      = gbitmap_create_with_resource(RESOURCE_ID_ICON_FOG);
+  s_icon_rain     = gbitmap_create_with_resource(RESOURCE_ID_ICON_RAIN);
+  s_icon_snow     = gbitmap_create_with_resource(RESOURCE_ID_ICON_SNOW);
+  s_icon_storm    = gbitmap_create_with_resource(RESOURCE_ID_ICON_STORM);
 
   // init() may have restored a persisted condition before these existed, so
   // re-resolve the icon pointer now that the bitmaps are loaded.
@@ -203,9 +251,14 @@ static void window_unload(Window *window) {
 
   gbitmap_destroy(s_background);
   gbitmap_destroy(s_icon_clear);
+  gbitmap_destroy(s_icon_clear_n);
+  gbitmap_destroy(s_icon_partly);
+  gbitmap_destroy(s_icon_partly_n);
   gbitmap_destroy(s_icon_cloud);
+  gbitmap_destroy(s_icon_fog);
   gbitmap_destroy(s_icon_rain);
   gbitmap_destroy(s_icon_snow);
+  gbitmap_destroy(s_icon_storm);
 
   fonts_unload_custom_font(s_font_time);
   fonts_unload_custom_font(s_font_date);
@@ -219,6 +272,9 @@ static void init(void) {
   strcpy(s_steps_text, "--");
   apply_condition(COND_UNKNOWN);
 
+  if (persist_exists(PKEY_DAY)) {
+    s_is_day = persist_read_bool(PKEY_DAY);
+  }
   if (persist_exists(PKEY_COND)) {
     apply_condition(persist_read_int(PKEY_COND));
   }

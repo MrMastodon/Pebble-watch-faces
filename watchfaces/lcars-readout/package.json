@@ -23,7 +23,8 @@
     ],
     "messageKeys": [
       "CONDITION",
-      "TEMPERATURE"
+      "TEMPERATURE",
+      "IS_DAY"
     ],
     "resources": {
       "media": [
@@ -64,8 +65,28 @@
         },
         {
           "type": "bitmap",
+          "name": "ICON_CLEAR_N",
+          "file": "images/icon_clear_n.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "ICON_PARTLY",
+          "file": "images/icon_partly.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "ICON_PARTLY_N",
+          "file": "images/icon_partly_n.png"
+        },
+        {
+          "type": "bitmap",
           "name": "ICON_CLOUD",
           "file": "images/icon_cloud.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "ICON_FOG",
+          "file": "images/icon_fog.png"
         },
         {
           "type": "bitmap",
@@ -76,6 +97,11 @@
           "type": "bitmap",
           "name": "ICON_SNOW",
           "file": "images/icon_snow.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "ICON_STORM",
+          "file": "images/icon_storm.png"
         }
       ]
     },

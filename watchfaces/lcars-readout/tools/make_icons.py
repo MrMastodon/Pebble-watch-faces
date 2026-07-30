@@ -35,11 +35,19 @@ BASE = ("https://raw.githubusercontent.com/google/material-design-icons/"
 #
 # Only the weather icons live here. The thermometer, heart and footprints are
 # painted into the background artwork, since they never change.
+#
+# Clear and partly-cloudy carry night variants; the rest look the same after
+# dark, so a moon would add nothing.
 ICONS = {
     "icon_clear": "sunny",
+    "icon_clear_n": "clear_night",
+    "icon_partly": "partly_cloudy_day",
+    "icon_partly_n": "partly_cloudy_night",
     "icon_cloud": "cloud",
+    "icon_fog": "foggy",
     "icon_rain": "rainy",
     "icon_snow": "weather_snowy",
+    "icon_storm": "thunderstorm",
 }
 
 

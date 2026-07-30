@@ -109,10 +109,14 @@ veier lite.
 
 ## Ikoner
 
-Bare de fire værikonene ligger som ressurser nå — termometer, hjerte og
-fotspor er malt inn i bakgrunnen, siden de aldri endrer seg. De fire som er
-igjen er 20×20 px sort-på-transparent fra **Material Symbols** (Google,
-**Apache-2.0** — lisenstekst i `resources/images/LICENSE-material-symbols.txt`).
+Ni værikoner ligger som ressurser — termometer, hjerte og fotspor er malt inn
+i bakgrunnen, siden de aldri endrer seg. Alle er 17×17 px sort-på-transparent
+fra **Material Symbols** (Google, **Apache-2.0** — lisenstekst i
+`resources/images/LICENSE-material-symbols.txt`).
+
+Klart vær og delvis skyet har egne nattvarianter (måne i stedet for sol);
+resten ser like ut etter mørkets frembrudd, så en måne ville ikke tilført noe.
+Telefonen sender `is_day` fra Open-Meteo, som styrer valget.
 
 Kilde-SVG-ene ligger i `resources/images/src/`, og PNG-ene bygges av
 `tools/make_icons.py`.
@@ -124,7 +128,7 @@ Kilde-SVG-ene ligger i `resources/images/src/`, og PNG-ene bygges av
 | Tid, dato | `tick_timer_service` (MINUTE_UNIT) | live |
 | Batteri | `battery_state_service` | live |
 | Puls, skritt | `HealthService` | live på klokka, tomt i emulator |
-| Vær | `src/pkjs/index.js` → Open-Meteo | krever telefon med posisjon |
+| Vær | `src/pkjs/index.js` → Open-Meteo | live, verifisert i emulator |
 
 Bluetooth vises som `LINK` i den nederste blokka når telefonappen er
 tilkoblet, og blokka står helt tom når den ikke er det — et brutt samband
@@ -146,6 +150,22 @@ tilleggsendring.
 Værhentingen bruker Open-Meteo, som ikke krever API-nøkkel, og henter hver
 30. minutt. Siste måling lagres med `persist_write_int`, så den overlever en
 omstart av urskiven i stedet for å blanke ut.
+
+Værtilstanden vises som en forkortelse på maks fem tegn ved siden av ikonet.
+Elleve tilstander skilles: `CLEAR`, `PTCLD`, `CLDY`, `FOG`, `DRIZL`, `RAIN`,
+`FZRN`, `SNOW`, `SHWR`, `SNSH`, `STRM`. Ikonet er signalet man leser i et
+øyekast; teksten er det som faktisk skiller yr fra underkjølt regn.
+
+Forkortelsene er valgt etter **målt bredde, ikke tegnantall** — `W` er nesten
+dobbelt så bred som `I` i Antonio, så `SHWRS` (53 px) og `SNSHW` (54 px) ble
+avkuttet mens fem-tegns `CLEAR` (46 px) står fint. `tools/measure_text.py`
+måler en kandidat mot 49 px-budsjettet før den tas i bruk.
+
+WMO-kodene fra Open-Meteo mappes i `src/pkjs/index.js`, og
+`tools/test_conditions.js` går gjennom alle 28 dokumenterte koder pluss
+udokumenterte verdier. Mappingen er et dusin tallintervaller, altså akkurat
+den formen der en av-med-én feiler stille: den krasjer ikke, den viser bare
+regn når det snør.
 
 Feilene er synlige på klokka i stedet for å se ut som «ingen data ennå»:
 `GPS?` betyr at posisjon ikke kunne hentes, `NET?` at Open-Meteo ikke svarte,
@@ -174,7 +194,7 @@ Sist bygde `.pbw` ligger i `dist/lcars-readout.pbw` og kan installeres direkte
 på klokka via Pebble-telefonappen.
 
 Bygget med `pebble-tool` 5.0.39 og Pebble SDK 4.17, target `emery`.
-Ressurser 13 797 B / 256 KB, statisk RAM 3 048 B / 128 KB
+Ressurser 14 431 B / 256 KB, statisk RAM 3 692 B / 128 KB
 (pluss ~22 KB heap for bakgrunnsbitmapen).
 
 ### Fallgruve: `enableMultiJS` og navnet på JS-bunten
