@@ -31,6 +31,14 @@
 #define BATT_W 50
 #define BATT_H 15
 
+// Bluetooth indicator in the bottom block (interior y 204..226). Shows LINK
+// while connected and nothing at all when not, so a broken link reads as an
+// absence rather than as another label to parse.
+#define LINK_X 0
+#define LINK_Y 209
+#define LINK_W 50
+#define LINK_H 15
+
 // ---------------------------------------------------------------------------
 // Content column
 // ---------------------------------------------------------------------------

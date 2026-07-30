@@ -26,6 +26,7 @@ static char s_hr_text[8];
 static char s_steps_text[8];
 
 static int s_cond_code = COND_UNKNOWN;
+static bool s_connected;
 
 // Persisted so the last weather reading survives a watchface reload rather
 // than blanking out until the phone answers again.
@@ -51,6 +52,11 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
             GTextAlignmentCenter);
   draw_text(ctx, s_batt_text, s_font_batt, BATT_X, BATT_Y, BATT_W, BATT_H,
             GTextAlignmentCenter);
+
+  if (s_connected) {
+    draw_text(ctx, "LINK", s_font_batt, LINK_X, LINK_Y, LINK_W, LINK_H,
+              GTextAlignmentCenter);
+  }
 
   if (s_icon_cond) {
     graphics_context_set_compositing_mode(ctx, GCompOpSet);
@@ -113,6 +119,22 @@ static void update_health(void) {
   strcpy(s_steps_text, "--");
   strcpy(s_hr_text, "--");
 #endif
+}
+
+static void update_connection(bool connected) {
+  bool was_connected = s_connected;
+  s_connected = connected;
+
+  // Only on the way down, and never for the initial state — s_connected is
+  // seeded in init() before subscribing, so loading the watchface while the
+  // phone is already out of range stays silent.
+  if (was_connected && !connected && !quiet_time_is_active()) {
+    static const uint32_t pulse[] = { 60 };
+    VibePattern pat = { .durations = pulse, .num_segments = ARRAY_LENGTH(pulse) };
+    vibes_enqueue_custom_pattern(pat);
+  }
+
+  if (s_canvas) layer_mark_dirty(s_canvas);
 }
 
 static void update_battery(BatteryChargeState state) {
@@ -218,8 +240,15 @@ static void init(void) {
   update_health();
   update_battery(battery_state_service_peek());
 
+  // Seed before subscribing: update_connection() vibrates on a true->false
+  // edge, and without this the first callback would look like a fresh drop.
+  s_connected = connection_service_peek_pebble_app_connection();
+
   tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
   battery_state_service_subscribe(update_battery);
+  connection_service_subscribe((ConnectionHandlers) {
+    .pebble_app_connection_handler = update_connection,
+  });
 #if defined(PBL_HEALTH)
   health_service_events_subscribe(health_handler, NULL);
 #endif
@@ -231,6 +260,7 @@ static void init(void) {
 static void deinit(void) {
   tick_timer_service_unsubscribe();
   battery_state_service_unsubscribe();
+  connection_service_unsubscribe();
 #if defined(PBL_HEALTH)
   health_service_events_unsubscribe();
 #endif

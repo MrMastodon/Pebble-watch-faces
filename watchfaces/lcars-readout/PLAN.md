@@ -38,6 +38,7 @@ må måles om hvis illustrasjonen endres.
 | Temperatur | x 76–125, y 200–216 |
 | Puls | x 147–198, y 159–174 |
 | Skritt | x 147–198, y 200–216 |
+| LINK (BT) | x 0–50, y 209–224 (Antonio 16) |
 
 Klokkeslett og dato er sentrert ved å måle faktisk avstand fra sifrene til
 nærmeste grafikk over og under, ikke mot hullet i illustrasjonen: klokka står
@@ -104,7 +105,7 @@ veier lite.
 | `FONT_ANTONIO_58` | klokkeslett | `[0-9:]` |
 | `FONT_ANTONIO_30` | dato | `[0-9.]` |
 | `FONT_ANTONIO_22` | avlesningsverdier | `[0-9A-Z%°.:?-]` |
-| `FONT_ANTONIO_16` | batteriprosent | `[0-9%]` |
+| `FONT_ANTONIO_16` | batteriprosent, LINK | `[0-9%LINK]` |
 
 ## Ikoner
 
@@ -125,9 +126,22 @@ Kilde-SVG-ene ligger i `resources/images/src/`, og PNG-ene bygges av
 | Puls, skritt | `HealthService` | live på klokka, tomt i emulator |
 | Vær | `src/pkjs/index.js` → Open-Meteo | krever telefon med posisjon |
 
-Illustrasjonen har ingen plass til Bluetooth-status, så den indikatoren er
-tatt ut. De to øverste blokkene i venstre skinne er dekorative — hvis en av
-dem skal vise tilkobling, er det bare å si.
+Bluetooth vises som `LINK` i den nederste blokka når telefonappen er
+tilkoblet, og blokka står helt tom når den ikke er det — et brutt samband
+leser da som et fravær i stedet for enda en etikett å tolke. Svart tekst gir
+5,3:1 mot `#FF0000`; hvit ville gitt 4,0:1.
+
+Ved brudd gis en 60 ms vibrering, kortere enn `vibes_short_pulse()`. Den
+utløses bare på overgangen tilkoblet → frakoblet, og `s_connected` seedes fra
+`connection_service_peek_pebble_app_connection()` *før* abonnementet, slik at
+urskiva ikke vibrerer når den lastes mens telefonen allerede er utenfor
+rekkevidde. Vibreringen hoppes over under Quiet Time, som SDK-en eksplisitt
+ber om — ellers ville klokka buzzet hver gang telefonen mistet kontakt om
+natta.
+
+Det er ingen debounce: et kort brudd som straks kobler seg opp igjen gir en
+vibrering. Blir det støyende i praksis er en AppTimer-debounce en liten
+tilleggsendring.
 
 Værhentingen bruker Open-Meteo, som ikke krever API-nøkkel, og henter hver
 30. minutt. Siste måling lagres med `persist_write_int`, så den overlever en
@@ -160,8 +174,17 @@ Sist bygde `.pbw` ligger i `dist/lcars-readout.pbw` og kan installeres direkte
 på klokka via Pebble-telefonappen.
 
 Bygget med `pebble-tool` 5.0.39 og Pebble SDK 4.17, target `emery`.
-Ressurser 13 688 B / 256 KB, statisk RAM 2 701 B / 128 KB
+Ressurser 13 797 B / 256 KB, statisk RAM 3 048 B / 128 KB
 (pluss ~22 KB heap for bakgrunnsbitmapen).
+
+### Fallgruve: `characterRegex` og waf-cachen
+
+Endrer du `characterRegex` på en font i `package.json`, ser ikke waf det som
+en grunn til å bygge fonten på nytt — TTF-en er jo uendret. Bygget lykkes, men
+med den gamle glyffsamlingen, og tegn du nettopp la til rendres som ingenting.
+Kjør `rm -rf build` etter slike endringer. Her gikk ressursbudsjettet fra
+13 688 til 13 797 B først etter et rent bygg, som var beviset på at fire nye
+glyffer faktisk kom med.
 
 ### Fallgruve på Linux uten IPv6
 
