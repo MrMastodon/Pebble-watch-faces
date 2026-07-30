@@ -58,14 +58,14 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
         ctx, s_icon_cond, GRect(COND_ICON_X, COND_ICON_Y, ICON_SZ, ICON_SZ));
   }
 
-  draw_text(ctx, s_cond_text, s_font_value, COND_TEXT_X, ROW1_Y, COND_TEXT_W,
-            ROW_H, GTextAlignmentLeft);
-  draw_text(ctx, s_hr_text, s_font_value, HR_TEXT_X, ROW1_Y, HR_TEXT_W,
-            ROW_H, GTextAlignmentLeft);
-  draw_text(ctx, s_temp_text, s_font_value, TEMP_TEXT_X, ROW2_Y, TEMP_TEXT_W,
-            ROW_H, GTextAlignmentLeft);
-  draw_text(ctx, s_steps_text, s_font_value, STEPS_TEXT_X, ROW2_Y, STEPS_TEXT_W,
-            ROW_H, GTextAlignmentLeft);
+  draw_text(ctx, s_cond_text, s_font_value, COND_TEXT_X, COND_TEXT_Y,
+            COND_TEXT_W, COND_TEXT_H, GTextAlignmentLeft);
+  draw_text(ctx, s_hr_text, s_font_value, HR_TEXT_X, HR_TEXT_Y,
+            HR_TEXT_W, HR_TEXT_H, GTextAlignmentLeft);
+  draw_text(ctx, s_temp_text, s_font_value, TEMP_TEXT_X, TEMP_TEXT_Y,
+            TEMP_TEXT_W, TEMP_TEXT_H, GTextAlignmentLeft);
+  draw_text(ctx, s_steps_text, s_font_value, STEPS_TEXT_X, STEPS_TEXT_Y,
+            STEPS_TEXT_W, STEPS_TEXT_H, GTextAlignmentLeft);
 }
 
 // ---------------------------------------------------------------------------
@@ -79,6 +79,8 @@ static void apply_condition(int code) {
     case COND_CLOUD: s_icon_cond = s_icon_cloud; strcpy(s_cond_text, "CLOUD"); break;
     case COND_RAIN:  s_icon_cond = s_icon_rain;  strcpy(s_cond_text, "RAIN");  break;
     case COND_SNOW:  s_icon_cond = s_icon_snow;  strcpy(s_cond_text, "SNOW");  break;
+    case COND_NO_LOCATION: s_icon_cond = NULL;   strcpy(s_cond_text, "GPS?");  break;
+    case COND_NO_NET:      s_icon_cond = NULL;   strcpy(s_cond_text, "NET?");  break;
     default:         s_icon_cond = NULL;         strcpy(s_cond_text, "--");    break;
   }
 }
@@ -134,8 +136,13 @@ static void inbox_received(DictionaryIterator *iter, void *context) {
   Tuple *temp = dict_find(iter, MESSAGE_KEY_TEMPERATURE);
 
   if (cond) {
-    apply_condition((int)cond->value->int32);
-    persist_write_int(PKEY_COND, (int)cond->value->int32);
+    int code = (int)cond->value->int32;
+    apply_condition(code);
+    // Only remember real readings — a failure state should not come back after
+    // a reload and masquerade as the current weather.
+    if (code >= COND_CLEAR && code <= COND_SNOW) {
+      persist_write_int(PKEY_COND, code);
+    }
   }
   if (temp) {
     snprintf(s_temp_text, sizeof(s_temp_text), "%d°C", (int)temp->value->int32);

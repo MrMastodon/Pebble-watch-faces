@@ -24,24 +24,28 @@ lisensiert PolyForm Noncommercial og ingenting derfra er kopiert.
 
 Rammen — former, overskrifter og de tre faste ikonene (termometer, hjerte,
 fotspor) — er **ett bakgrunnsbilde**, håndtegnet av brukeren:
-`resources/images/LCARS-readout_background_3.png`. Koden tegner bare verdiene
+`resources/images/LCARS-readout_background_5.png`. Koden tegner bare verdiene
 oppå. Alle koordinater i `src/c/lcars_theme.h` er målt mot det bildet, så de
 må måles om hvis illustrasjonen endres.
 
 | Felt | Posisjon |
 |---|---|
-| Klokkeslett | x 52–198, y 16–72 (Antonio 58) |
-| Dato | x 52–198, y 109–141 (Antonio 30) |
-| Batteri | x 0–50, y 208–233 (Antonio 16) |
-| Værikon | x 52, y 158, 20×20 |
-| Værtilstand | x 74–126, y 159–179 |
-| Temperatur | x 70–122, y 194–214 |
-| Puls | x 148–198, y 159–179 |
-| Skritt | x 148–198, y 194–214 |
+| Klokkeslett | x 52–198, y 13–69 (Antonio 58) |
+| Dato | x 52–198, y 111–143 (Antonio 30) |
+| Batteri | x 0–50, y 182–197 (Antonio 16) |
+| Værikon | x 57, y 158, 17×17 |
+| Værtilstand | x 76–125, y 159–174 |
+| Temperatur | x 76–125, y 200–216 |
+| Puls | x 147–198, y 159–174 |
+| Skritt | x 147–198, y 200–216 |
+
+Batteriet ligger i den **røde** blokka (y 174–200), ikke den nederste — det er
+langt lettere å lese mot den fargen. De to venstre verdiene deler x76 og de to
+høyre deler x147, så kolonnene står i flukt selv om ikonene har ulik bredde.
 
 Værikonet er det eneste ikonet som tegnes i kode, siden det er det eneste som
-bytter. Det ligger på x52 og ikke i flukt med termometeret på x57, fordi
-`CLEAR`/`CLOUD` trenger 47 px og x57 bare levner 43.
+bytter. Det er 17×17 for å matche hjertet (17×15) og fotsporene (17×16) i
+illustrasjonen.
 
 Bakgrunnen klargjøres av `tools/prep_background.py`, som selv plukker den
 høyest nummererte `LCARS-readout_background*.png`. Alfa flates ut mot hvitt,
@@ -94,7 +98,7 @@ veier lite.
 |---|---|---|
 | `FONT_ANTONIO_58` | klokkeslett | `[0-9:]` |
 | `FONT_ANTONIO_30` | dato | `[0-9.]` |
-| `FONT_ANTONIO_22` | avlesningsverdier | `[0-9A-Z%°.:-]` |
+| `FONT_ANTONIO_22` | avlesningsverdier | `[0-9A-Z%°.:?-]` |
 | `FONT_ANTONIO_16` | batteriprosent | `[0-9%]` |
 
 ## Ikoner
@@ -122,7 +126,17 @@ dem skal vise tilkobling, er det bare å si.
 
 Værhentingen bruker Open-Meteo, som ikke krever API-nøkkel, og henter hver
 30. minutt. Siste måling lagres med `persist_write_int`, så den overlever en
-omstart av urskiven i stedet for å blanke ut. Felter uten data viser `--`.
+omstart av urskiven i stedet for å blanke ut.
+
+Feilene er synlige på klokka i stedet for å se ut som «ingen data ennå»:
+`GPS?` betyr at posisjon ikke kunne hentes, `NET?` at Open-Meteo ikke svarte,
+og `--` at ingenting har kommet inn ennå. Feiltilstander lagres ikke, så de
+kommer ikke tilbake etter en omstart og utgir seg for å være dagens vær.
+
+Telefonsiden prøver på nytt tre ganger med ett minutts mellomrom før den gir
+opp, og husker siste posisjon i `localStorage` — en halvtimegammel posisjon er
+mer enn presis nok for vær, og slår å stå uten. Tidsavbruddet for posisjon er
+30 s, siden en kald GPS-fiks innendørs sjelden rekker 15.
 
 **Ikke verifisert på fysisk klokke:** vær-, puls- og skrittverdiene er kun
 testet i emulatoren, der de to siste er tomme og været ikke kan hentes (ingen
@@ -141,7 +155,7 @@ Sist bygde `.pbw` ligger i `dist/lcars-readout.pbw` og kan installeres direkte
 på klokka via Pebble-telefonappen.
 
 Bygget med `pebble-tool` 5.0.39 og Pebble SDK 4.17, target `emery`.
-Ressurser 13 720 B / 256 KB, statisk RAM 2 740 B / 128 KB
+Ressurser 13 688 B / 256 KB, statisk RAM 2 701 B / 128 KB
 (pluss ~22 KB heap for bakgrunnsbitmapen).
 
 ### Fallgruve på Linux uten IPv6

@@ -20,7 +20,7 @@ import urllib.request
 import cairosvg
 from PIL import Image
 
-SIZE = 20        # final icon size, matches ICON_SZ in src/c/lcars_theme.h
+SIZE = 17        # final icon size, matches ICON_SZ in src/c/lcars_theme.h
 RENDER = 512     # rasterise this big before downsampling
 BLACK = (0, 0, 0, 255)
 

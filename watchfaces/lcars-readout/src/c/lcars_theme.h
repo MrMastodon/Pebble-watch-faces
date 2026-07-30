@@ -9,59 +9,71 @@
 // The LCARS frame — shapes, captions and the three fixed icons — is a single
 // background bitmap (resources/images/background.png). Only the values below
 // are drawn in code, so every coordinate here is measured against that image.
-// Re-measure with tools/prep_background.py if the artwork changes.
+// Re-measure whenever the artwork changes.
+//
+// Artwork reference points (LCARS-readout_background_4.png):
+//   left rail blocks   y 0..20, 22..87, 92..128, 130..171, 173..201, 203..227
+//   heart icon         x 128..144, y 159..173
+//   thermometer icon   x  63..70,  y 199..215
+//   footprints icon    x 128..144, y 200..215
+//
+// The two row-2 icons are not on a shared baseline, so each value gets its own
+// box rather than sharing a grid row.
 
 #define C_TEXT GColorBlack
 
 // ---------------------------------------------------------------------------
-// Left rail. Blocks sit at y 130..171, 173..201 and 203..227; the battery
-// takes the bottom one, the other two are decorative in this artwork.
+// Left rail. Battery sits in the red block (y 174..200 inside its outline),
+// not the bottom one — it reads far better against that colour.
 // ---------------------------------------------------------------------------
 #define BATT_X 0
-#define BATT_Y 208   // block interior is y204..226; 203 put the glyph tops
-#define BATT_W 50    // above its top border
-#define BATT_H 25
+#define BATT_Y 182
+#define BATT_W 50
+#define BATT_H 15
 
 // ---------------------------------------------------------------------------
-// Content column. Time and date sit in the two large gaps the artwork leaves.
+// Content column
 // ---------------------------------------------------------------------------
 #define CONT_X 52
 #define CONT_W 146
 
-#define TIME_Y 16
+#define TIME_Y 13
 #define TIME_H 56
 
-#define DATE_Y 109
+#define DATE_Y 111
 #define DATE_H 32
 
 // ---------------------------------------------------------------------------
-// 2x2 readout grid. Row 1 is the band at y 159..176, row 2 at y 194..213.
-// The heart (x126..145), thermometer (x57..66) and footprints (x127..144) are
-// painted into the background; only the weather icon changes, so only that one
-// is drawn here.
+// Readouts. Columns split at x126: SENSORS on the left, VITALS/STEPS right.
 // ---------------------------------------------------------------------------
-#define ROW1_Y 159
-#define ROW2_Y 194
-#define ROW_H  20
+#define ICON_SZ 17
 
-// The weather icon sits at the column's left edge rather than lining up with
-// the thermometer at x57: "CLEAR" and "CLOUD" need 47px, and starting at 57
-// only leaves 43. Text runs into the white gap before the VITALS column.
-#define COND_ICON_X 52
+// Weather icon — the only one drawn in code, since it is the only one that
+// changes. Sits on the thermometer's x so the two left-column rows line up.
+#define COND_ICON_X 57
 #define COND_ICON_Y 158
-#define ICON_SZ     20
 
-#define COND_TEXT_X 74
-#define COND_TEXT_W (126 - COND_TEXT_X)
+#define COND_TEXT_X 76
+#define COND_TEXT_W (125 - COND_TEXT_X)
+#define COND_TEXT_Y 159
+#define COND_TEXT_H 15
 
-#define TEMP_TEXT_X 70          // right of the narrow thermometer glyph
-#define TEMP_TEXT_W (122 - TEMP_TEXT_X)
-
-#define HR_TEXT_X 148           // right of the heart
+#define HR_TEXT_X 147           // right of the heart
 #define HR_TEXT_W (198 - HR_TEXT_X)
+#define HR_TEXT_Y 159
+#define HR_TEXT_H 15
 
-#define STEPS_TEXT_X 148        // right of the footprints
+// Shares COND_TEXT_X so the two left-column values line up, even though the
+// thermometer glyph is narrower than the weather icon above it.
+#define TEMP_TEXT_X COND_TEXT_X
+#define TEMP_TEXT_W (125 - TEMP_TEXT_X)
+#define TEMP_TEXT_Y 200
+#define TEMP_TEXT_H 16
+
+#define STEPS_TEXT_X 147        // right of the footprints
 #define STEPS_TEXT_W (198 - STEPS_TEXT_X)
+#define STEPS_TEXT_Y 200
+#define STEPS_TEXT_H 16
 
 // ---------------------------------------------------------------------------
 // Weather condition codes exchanged with the phone (our own enum, mapped from
@@ -73,4 +85,8 @@ typedef enum {
   COND_CLOUD   = 2,
   COND_RAIN    = 3,
   COND_SNOW    = 4,
+  // Failure states from the phone, so an empty readout can be told apart from
+  // a broken one when debugging on the wrist.
+  COND_NO_LOCATION = 5,
+  COND_NO_NET      = 6,
 } WeatherCondition;
