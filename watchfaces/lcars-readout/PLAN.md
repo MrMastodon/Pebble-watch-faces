@@ -24,7 +24,7 @@ lisensiert PolyForm Noncommercial og ingenting derfra er kopiert.
 
 Rammen — former, overskrifter og de tre faste ikonene (termometer, hjerte,
 fotspor) — er **ett bakgrunnsbilde**, håndtegnet av brukeren:
-`resources/images/LCARS-readout_background_2.png`. Koden tegner bare verdiene
+`resources/images/LCARS-readout_background_3.png`. Koden tegner bare verdiene
 oppå. Alle koordinater i `src/c/lcars_theme.h` er målt mot det bildet, så de
 må måles om hvis illustrasjonen endres.
 
@@ -43,7 +43,8 @@ Værikonet er det eneste ikonet som tegnes i kode, siden det er det eneste som
 bytter. Det ligger på x52 og ikke i flukt med termometeret på x57, fordi
 `CLEAR`/`CLOUD` trenger 47 px og x57 bare levner 43.
 
-Bakgrunnen klargjøres av `tools/prep_background.py`: alfa flates ut mot hvitt,
+Bakgrunnen klargjøres av `tools/prep_background.py`, som selv plukker den
+høyest nummererte `LCARS-readout_background*.png`. Alfa flates ut mot hvitt,
 og hver piksel snappes til Pebble-64. Deretter skilles designfarger fra
 antialiasing-frynser, slik at fargetallet holder seg under 16 og bitmapen kan
 lagres som `4BitPalette` — 22 KB heap i stedet for 45 KB.
@@ -62,7 +63,7 @@ mellomgrå ligger bare 85 fra `#005555` men 255 fra svart målt per kanal.
 ## Palett
 
 Illustrasjonen er tegnet direkte på Pebble-paletten, så den overlever
-konverteringen nesten intakt — bare 6,1 % av pikslene flytter seg, og det er
+konverteringen nesten intakt — bare 2,6 % av pikslene flytter seg, og det er
 utelukkende antialiasing langs kanter. Sluttresultatet er 13 farger: åtte
 designfarger pluss svart og hvit, og tre frynsefarger som er små nok til å
 ikke telle visuelt.
@@ -140,7 +141,7 @@ Sist bygde `.pbw` ligger i `dist/lcars-readout.pbw` og kan installeres direkte
 på klokka via Pebble-telefonappen.
 
 Bygget med `pebble-tool` 5.0.39 og Pebble SDK 4.17, target `emery`.
-Ressurser 13 859 B / 256 KB, statisk RAM 2 740 B / 128 KB
+Ressurser 13 720 B / 256 KB, statisk RAM 2 740 B / 128 KB
 (pluss ~22 KB heap for bakgrunnsbitmapen).
 
 ### Fallgruve på Linux uten IPv6

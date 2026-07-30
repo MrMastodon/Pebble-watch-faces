@@ -14,21 +14,41 @@ Two things have to happen before the artwork can be shipped:
     python3 tools/prep_background.py
 """
 
+import glob
 import os
+import re
 
 import numpy as np
 from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 IMAGES = os.path.join(HERE, "..", "resources", "images")
-SRC = os.path.join(IMAGES, "LCARS-readout_background_2.png")
 DEST = os.path.join(IMAGES, "background.png")
 
 LEVELS = np.array([0, 85, 170, 255])
 
 
+def find_source():
+    """Newest LCARS-readout_background*.png, by trailing revision number.
+
+    The artwork gets re-uploaded under a bumped suffix each revision, so
+    picking the highest one beats hardcoding a name that goes stale.
+    """
+    candidates = glob.glob(os.path.join(IMAGES, "LCARS-readout_background*.png"))
+    if not candidates:
+        raise SystemExit("no LCARS-readout_background*.png in resources/images")
+
+    def revision(path):
+        m = re.search(r"_(\d+)\.png$", path)
+        return int(m.group(1)) if m else 0
+
+    return max(candidates, key=revision)
+
+
 def main():
-    src = Image.open(SRC)
+    src_path = find_source()
+    print(f"source: {os.path.basename(src_path)}")
+    src = Image.open(src_path)
     if src.size != (200, 228):
         raise SystemExit(f"expected 200x228, got {src.size}")
 
