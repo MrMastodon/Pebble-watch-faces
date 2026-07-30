@@ -32,7 +32,7 @@ må måles om hvis illustrasjonen endres.
 |---|---|
 | Klokkeslett | x 52–198, y 16–72 (Antonio 58) |
 | Dato | x 52–198, y 109–141 (Antonio 30) |
-| Batteri | x 0–50, y 203–228 (Antonio 16) |
+| Batteri | x 0–50, y 208–233 (Antonio 16) |
 | Værikon | x 52, y 158, 20×20 |
 | Værtilstand | x 74–126, y 159–179 |
 | Temperatur | x 70–122, y 194–214 |

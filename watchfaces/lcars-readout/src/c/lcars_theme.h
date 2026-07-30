@@ -18,8 +18,8 @@
 // takes the bottom one, the other two are decorative in this artwork.
 // ---------------------------------------------------------------------------
 #define BATT_X 0
-#define BATT_Y 203
-#define BATT_W 50
+#define BATT_Y 208   // block interior is y204..226; 203 put the glyph tops
+#define BATT_W 50    // above its top border
 #define BATT_H 25
 
 // ---------------------------------------------------------------------------
