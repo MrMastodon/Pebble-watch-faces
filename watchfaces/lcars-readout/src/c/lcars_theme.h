@@ -37,10 +37,10 @@
 #define CONT_X 52
 #define CONT_W 146
 
-#define TIME_Y 13
+#define TIME_Y 16
 #define TIME_H 56
 
-#define DATE_Y 111
+#define DATE_Y 109
 #define DATE_H 32
 
 // ---------------------------------------------------------------------------

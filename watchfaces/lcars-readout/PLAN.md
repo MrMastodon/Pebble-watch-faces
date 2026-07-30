@@ -30,14 +30,19 @@ må måles om hvis illustrasjonen endres.
 
 | Felt | Posisjon |
 |---|---|
-| Klokkeslett | x 52–198, y 13–69 (Antonio 58) |
-| Dato | x 52–198, y 111–143 (Antonio 30) |
+| Klokkeslett | x 52–198, y 16–72 (Antonio 58) |
+| Dato | x 52–198, y 109–141 (Antonio 30) |
 | Batteri | x 0–50, y 182–197 (Antonio 16) |
 | Værikon | x 57, y 158, 17×17 |
 | Værtilstand | x 76–125, y 159–174 |
 | Temperatur | x 76–125, y 200–216 |
 | Puls | x 147–198, y 159–174 |
 | Skritt | x 147–198, y 200–216 |
+
+Klokkeslett og dato er sentrert ved å måle faktisk avstand fra sifrene til
+nærmeste grafikk over og under, ikke mot hullet i illustrasjonen: klokka står
+5 px fra begge, datoen 6 over og 5 under (mellomrommet er 11 px, så det lar
+seg ikke dele likt).
 
 Batteriet ligger i den **røde** blokka (y 174–200), ikke den nederste — det er
 langt lettere å lese mot den fargen. De to venstre verdiene deler x76 og de to
