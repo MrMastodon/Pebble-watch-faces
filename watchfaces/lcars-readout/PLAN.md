@@ -22,55 +22,59 @@ lisensiert PolyForm Noncommercial og ingenting derfra er kopiert.
 
 ## Layout (200×228)
 
-Venstre skinne `x 2..48`, innholdskolonne `x 52..198`.
+Rammen — former, overskrifter og de tre faste ikonene (termometer, hjerte,
+fotspor) — er **ett bakgrunnsbilde**, håndtegnet av brukeren:
+`resources/images/LCARS-readout_background.png`. Koden tegner bare verdiene
+oppå. Alle koordinater i `src/c/lcars_theme.h` er målt mot det bildet, så de
+må måles om hvis illustrasjonen endres.
 
-```
- y   2..16   [lys blokk]           │ ▐ TIME ▬▬▬▬▬▬▬▬▬▬▬ ▌
- y  18..90   [blå elbow, L]        │ 17:54            (Antonio 58)
-             arm y 78..90 → x 96   │ segmentskinne y 80..90
- y  94..138  [rose elbow, Γ]       │ STARDATE ▮ ▬▬▬▬▬ ▌
-             arm y 94..106 → x 66  │ 29.07.2026       (Antonio 30)
- y 140..172  [LINK ACTIVE]         │ ▐SENSORS▬▌   ▐VITALS▬▌
-                                   │ ☀ CLEAR      ♥ 64
- y 174..196  [rød dekorblokk]      │              ▐TRAVERSAL▌
- y 198..226  [batteri %]           │ 🌡 18°C      👣 8432
-```
+| Felt | Posisjon |
+|---|---|
+| Klokkeslett | x 52–198, y 16–72 (Antonio 58) |
+| Dato | x 52–198, y 109–141 (Antonio 30) |
+| Batteri | x 0–50, y 203–228 (Antonio 16) |
+| Værikon | x 52, y 158, 20×20 |
+| Værtilstand | x 74–126, y 159–179 |
+| Temperatur | x 70–122, y 194–214 |
+| Puls | x 148–198, y 159–179 |
+| Skritt | x 148–198, y 194–214 |
 
-Begge elbows tegnes av `lcars_elbow_top()` / `lcars_elbow_bottom()` i
-`src/c/lcars_draw.c`: vertikal arm + horisontal arm, der den konkave
-innerkurven skjæres ut ved å male bakgrunnsfargen tilbake med en avrundet
-rektangel i innerhjørnet.
+Værikonet er det eneste ikonet som tegnes i kode, siden det er det eneste som
+bytter. Det ligger på x52 og ikke i flukt med termometeret på x57, fordi
+`CLEAR`/`CLOUD` trenger 47 px og x57 bare levner 43.
 
-Alle fem header-rader (`TIME`, `STARDATE`, `SENSORS`, `VITALS`, `TRAVERSAL`)
-kommer fra én `lcars_header()`. Den måler etikettbredden med
-`graphics_text_layout_get_content_size()` og fyller resten med bar + endekapsel
-— og dropper baren automatisk når etiketten ikke levner plass (som på
-`TRAVERSAL`). `STARDATE` bruker varianten uten ledende pill, så den rose
-elbow-armen får løpe inn i etiketten slik mockupen viser.
+Bakgrunnen klargjøres av `tools/prep_background.py`: alfa flates ut mot hvitt,
+og hver piksel snappes til Pebble-64. Sjeldne farger fra antialiasing (under
+32 px) foldes inn i nærmeste nabo, som får fargetallet ned til 9 — under 16, så
+bitmapen kan lagres som `4BitPalette` og bruker 22 KB heap i stedet for 45 KB.
 
 ## Palett
 
-| Element | GColor |
-|---|---|
-| Bakgrunn | `GColorWhite` |
-| Lyse fyllbarer, toppblokk | `GColorBabyBlueEyes` |
-| Pills og endekapsler | `GColorLavenderIndigo` |
-| Øvre elbow | `GColorPictonBlue` |
-| Nedre elbow, LINK-blokk | `GColorRoseVale` |
-| Rød dekorblokk | `GColorSunsetOrange` |
-| Batteriblokk | `GColorRajah` |
-| All tekst | `GColorBlack` |
+Emery kan bare vise 64 farger (hver kanal 00/55/AA/FF), så 35,5 % av pikslene
+i illustrasjonen flyttet seg under snappingen. Fire farger endte annerledes
+enn antatt:
 
-Fargene ser mer dempet ut på klokka enn hex-verdiene tilsier — Emery-skjermen
-er reflektiv, og emulatoren simulerer det.
+| Element | Tegnet | Blir på klokka | |
+|---|---|---|---|
+| Lyse barer | `#D6DBF0` | `#FFFFFF` | forsvinner mot hvit bakgrunn |
+| Blå elbow | `#84B9E2` | `#AAAAFF` | identisk med barene |
+| Pills/kapsler | ca. `#B0B0C8` | `#AAAAAA` | grå, ikke fiolett |
+| Batteriblokk | `#F7B195` | `#FFAAAA` | rosa, ikke oransje |
+
+Trygge alternativer som ligger *på* paletten: `#AAAAFF` lyse barer,
+`#55AAFF` blå elbow, `#AA55FF` fiolette pills, `#AA5555` rose (traff riktig),
+`#FF5555` rød (traff riktig), `#FFAA55` oransje batteri.
+
+Unngå også mykt antialiasing: paletten har bare fire nivåer per kanal, så
+myke kanter blir klumpete gråtoner i stedet for jevne overganger.
 
 ## Typografi
 
 **Antonio** (Google Fonts, SIL Open Font License — `resources/fonts/OFL.txt`),
-i fem størrelser. Den kondenserte formen er det som gjør at `22.06.2026` i det
+i fire størrelser. Den kondenserte formen er det som gjør at `22.06.2026` i det
 hele tatt får plass i en 146 px kolonne. Hver størrelse er begrenset med
-`characterRegex` til akkurat de tegnene den bruker, så alle fem til sammen
-veier under 15 KB.
+`characterRegex` til akkurat de tegnene den bruker, så alle fire til sammen
+veier lite.
 
 | Ressurs | Bruk | Tegn |
 |---|---|---|
@@ -78,23 +82,16 @@ veier under 15 KB.
 | `FONT_ANTONIO_30` | dato | `[0-9.]` |
 | `FONT_ANTONIO_22` | avlesningsverdier | `[0-9A-Z%°.:-]` |
 | `FONT_ANTONIO_16` | batteriprosent | `[0-9%]` |
-| `FONT_ANTONIO_14` | etiketter | `[A-Z ]` |
 
 ## Ikoner
 
-Sju 20×20 px sort-på-transparent PNG-er fra **Material Symbols** (Google,
+Bare de fire værikonene ligger som ressurser nå — termometer, hjerte og
+fotspor er malt inn i bakgrunnen, siden de aldri endrer seg. De fire som er
+igjen er 20×20 px sort-på-transparent fra **Material Symbols** (Google,
 **Apache-2.0** — lisenstekst i `resources/images/LICENSE-material-symbols.txt`).
-Apache-2.0 krever bare at lisensteksten følger med, ikke synlig kreditering i
-appen.
 
 Kilde-SVG-ene ligger i `resources/images/src/`, og PNG-ene bygges av
-`tools/make_icons.py`: hver SVG rasteriseres stort, beskjæres til selve
-figuren og skaleres ned med hard terskel — nødvendig fordi Pebble tegner dem
-med `GCompOpSet`, så antialiaserte gråtoner ville blitt støy.
-
-Termometeret bruker `device_thermostat`, ikke `thermostat`: sistnevnte har
-skalastreker som utvider omrisset og dytter kolben ut av senter i denne
-størrelsen.
+`tools/make_icons.py`.
 
 ## Datakilder
 
@@ -102,9 +99,12 @@ størrelsen.
 |---|---|---|
 | Tid, dato | `tick_timer_service` (MINUTE_UNIT) | live |
 | Batteri | `battery_state_service` | live |
-| LINK ACTIVE / LOST | `connection_service` | live |
 | Puls, skritt | `HealthService` | live på klokka, tomt i emulator |
 | Vær | `src/pkjs/index.js` → Open-Meteo | krever telefon med posisjon |
+
+Illustrasjonen har ingen plass til Bluetooth-status, så den indikatoren er
+tatt ut. De to øverste blokkene i venstre skinne er dekorative — hvis en av
+dem skal vise tilkobling, er det bare å si.
 
 Værhentingen bruker Open-Meteo, som ikke krever API-nøkkel, og henter hver
 30. minutt. Siste måling lagres med `persist_write_int`, så den overlever en
@@ -127,7 +127,8 @@ Sist bygde `.pbw` ligger i `dist/lcars-readout.pbw` og kan installeres direkte
 på klokka via Pebble-telefonappen.
 
 Bygget med `pebble-tool` 5.0.39 og Pebble SDK 4.17, target `emery`.
-Ressurser 14 459 B / 256 KB, RAM 4 713 B / 128 KB.
+Ressurser 13 998 B / 256 KB, statisk RAM 2 740 B / 128 KB
+(pluss ~22 KB heap for bakgrunnsbitmapen).
 
 ### Fallgruve på Linux uten IPv6
 

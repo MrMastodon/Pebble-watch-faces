@@ -28,6 +28,12 @@
     "resources": {
       "media": [
         {
+          "type": "bitmap",
+          "name": "BACKGROUND",
+          "file": "images/background.png",
+          "memoryFormat": "4BitPalette"
+        },
+        {
           "type": "font",
           "name": "FONT_ANTONIO_58",
           "file": "fonts/Antonio-Bold.ttf",
@@ -52,12 +58,6 @@
           "characterRegex": "[0-9%]"
         },
         {
-          "type": "font",
-          "name": "FONT_ANTONIO_14",
-          "file": "fonts/Antonio-Bold.ttf",
-          "characterRegex": "[A-Z ]"
-        },
-        {
           "type": "bitmap",
           "name": "ICON_CLEAR",
           "file": "images/icon_clear.png"
@@ -76,21 +76,6 @@
           "type": "bitmap",
           "name": "ICON_SNOW",
           "file": "images/icon_snow.png"
-        },
-        {
-          "type": "bitmap",
-          "name": "ICON_TEMP",
-          "file": "images/icon_temp.png"
-        },
-        {
-          "type": "bitmap",
-          "name": "ICON_HEART",
-          "file": "images/icon_heart.png"
-        },
-        {
-          "type": "bitmap",
-          "name": "ICON_STEPS",
-          "file": "images/icon_steps.png"
         }
       ]
     }
