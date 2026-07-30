@@ -157,10 +157,10 @@ opp, og husker siste posisjon i `localStorage` — en halvtimegammel posisjon er
 mer enn presis nok for vær, og slår å stå uten. Tidsavbruddet for posisjon er
 30 s, siden en kald GPS-fiks innendørs sjelden rekker 15.
 
-**Ikke verifisert på fysisk klokke:** vær-, puls- og skrittverdiene er kun
-testet i emulatoren, der de to siste er tomme og været ikke kan hentes (ingen
-posisjonskilde). Selve mottakssiden i C og render-veien er verifisert ved å
-fylle inn verdier manuelt — se høyre skjermbilde over.
+Været er nå verifisert ende-til-ende i emulatoren: `pypkjs` kjører
+telefonkoden, henter posisjon og svar fra Open-Meteo, og verdiene lander på
+skjermen. Puls og skritt er fortsatt tomme der, siden emulatoren ikke har
+helsedata.
 
 ## Bygg
 
@@ -176,6 +176,22 @@ på klokka via Pebble-telefonappen.
 Bygget med `pebble-tool` 5.0.39 og Pebble SDK 4.17, target `emery`.
 Ressurser 13 797 B / 256 KB, statisk RAM 3 048 B / 128 KB
 (pluss ~22 KB heap for bakgrunnsbitmapen).
+
+### Fallgruve: `enableMultiJS` og navnet på JS-bunten
+
+Uten `"enableMultiJS": true` i `package.json` — og et `wscript` som sender
+`js_entry_file` til `pbl_bundle` — havner telefonkoden i `.pbw`-en som
+`src/pkjs/index.js`. Telefonen ser etter `pebble-js-app.js`, finner den ikke,
+og **kjører aldri JS-en i det hele tatt**. Alt annet fungerer, så symptomet er
+at bare vær mangler mens klokke, batteri og helse er i orden.
+
+Byggeloggen sier det rett ut — `enableMultiJS is not enabled for this project
+and pebble-js-app.js does not exist` — men den drukner blant andre advarsler.
+Sjekk `unzip -l build/*.pbw`: ligger det en `pebble-js-app.js` der, kjører
+JS-en; ligger det en `index.js`, gjør den det ikke.
+
+`wscript` må være SDK-ens JS-variant (`pebble new-project --javascript`), som
+bruker `pbl_build(..., bin_type='app')` og `js_entry_file='src/pkjs/index.js'`.
 
 ### Fallgruve: `characterRegex` og waf-cachen
 

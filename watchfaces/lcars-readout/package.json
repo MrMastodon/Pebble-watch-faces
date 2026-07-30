@@ -78,6 +78,7 @@
           "file": "images/icon_snow.png"
         }
       ]
-    }
+    },
+    "enableMultiJS": true
   }
 }
