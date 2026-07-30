@@ -21,7 +21,7 @@ from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 IMAGES = os.path.join(HERE, "..", "resources", "images")
-SRC = os.path.join(IMAGES, "LCARS-readout_background.png")
+SRC = os.path.join(IMAGES, "LCARS-readout_background_2.png")
 DEST = os.path.join(IMAGES, "background.png")
 
 LEVELS = np.array([0, 85, 170, 255])
@@ -39,19 +39,61 @@ def main():
     a = np.asarray(flat).astype(int)
     snapped = LEVELS[np.abs(a[..., None] - LEVELS).argmin(-1)].astype(np.uint8)
 
-    # Snapping antialiased edges scatters a long tail of near-unique colours —
-    # a few dozen stray pixels each. Folding anything under MIN_PIXELS into its
-    # nearest surviving colour drops the count under 16, which lets the bitmap
-    # ship as 4BitPalette and halves its RAM footprint (22 KB instead of 45 KB).
-    MIN_PIXELS = 32
-    flatpx = snapped.reshape(-1, 3)
-    colours, counts = np.unique(flatpx, axis=0, return_counts=True)
-    keep = colours[counts >= MIN_PIXELS]
-    drop = colours[counts < MIN_PIXELS]
+    # Snapping antialiased edges leaves a tail of fringe colours. Separating
+    # them from real design colours by pixel count alone gets it wrong — a
+    # small solid block can be rarer than a fringe smeared over the whole
+    # canvas. Compactness is the reliable signal: a design colour fills its
+    # bounding box, a fringe scatters thinly across the image.
+    #
+    # Folding the fringes away keeps the palette under 16 entries, which lets
+    # the bitmap ship as 4BitPalette for 22 KB of heap instead of 45 KB.
+    MIN_SHARE = 0.015   # this common is structural whatever shape it takes
+    MIN_RUN = 4         # ...otherwise it must form a solid run somewhere
 
+    total = snapped.shape[0] * snapped.shape[1]
+    colours = np.unique(snapped.reshape(-1, 3), axis=0)
+
+    def longest_run(mask):
+        """Longest horizontal or vertical unbroken run of this colour.
+
+        Bounding-box density fails here: pills and end caps are solid but
+        scattered across the whole canvas, so collectively they look as sparse
+        as noise. Run length asks the question that actually matters — does
+        this colour ever fill a solid stretch, or is it always a thin fringe?
+        """
+        best = 0
+        for grid in (mask, mask.T):
+            for line in grid:
+                run = 0
+                for v in line:
+                    run = run + 1 if v else 0
+                    if run > best:
+                        best = run
+        return best
+
+    keep, drop = [], []
+    for col in colours:
+        c = col.astype(int)
+        # The only true neutrals in Pebble-64 are #000000/#555555/#AAAAAA/
+        # #FFFFFF. The mid two only ever arise as antialiasing between ink and
+        # paper, so they are resolved along that axis rather than kept.
+        neutral_fringe = c.max() == c.min() and 0 < c[0] < 255
+        mask = (snapped == col).all(-1)
+        n = int(mask.sum())
+        if not neutral_fringe and (n / total >= MIN_SHARE or longest_run(mask) >= MIN_RUN):
+            keep.append(col)
+        else:
+            drop.append(col)
+
+    keep_arr = np.array(keep, dtype=int)
+    flatpx = snapped.reshape(-1, 3)
     for col in drop:
-        nearest = keep[np.abs(keep.astype(int) - col.astype(int)).sum(1).argmin()]
-        flatpx[(flatpx == col).all(1)] = nearest
+        c = col.astype(int)
+        if c.max() == c.min():
+            target = np.array([0, 0, 0]) if c.mean() < 128 else np.array([255, 255, 255])
+        else:
+            target = keep_arr[(((keep_arr - c) ** 2).sum(1)).argmin()]
+        flatpx[(flatpx == col).all(1)] = target
     snapped = flatpx.reshape(snapped.shape)
 
     out = Image.fromarray(snapped, "RGB")

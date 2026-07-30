@@ -24,7 +24,7 @@ lisensiert PolyForm Noncommercial og ingenting derfra er kopiert.
 
 Rammen — former, overskrifter og de tre faste ikonene (termometer, hjerte,
 fotspor) — er **ett bakgrunnsbilde**, håndtegnet av brukeren:
-`resources/images/LCARS-readout_background.png`. Koden tegner bare verdiene
+`resources/images/LCARS-readout_background_2.png`. Koden tegner bare verdiene
 oppå. Alle koordinater i `src/c/lcars_theme.h` er målt mot det bildet, så de
 må måles om hvis illustrasjonen endres.
 
@@ -44,29 +44,42 @@ bytter. Det ligger på x52 og ikke i flukt med termometeret på x57, fordi
 `CLEAR`/`CLOUD` trenger 47 px og x57 bare levner 43.
 
 Bakgrunnen klargjøres av `tools/prep_background.py`: alfa flates ut mot hvitt,
-og hver piksel snappes til Pebble-64. Sjeldne farger fra antialiasing (under
-32 px) foldes inn i nærmeste nabo, som får fargetallet ned til 9 — under 16, så
-bitmapen kan lagres som `4BitPalette` og bruker 22 KB heap i stedet for 45 KB.
+og hver piksel snappes til Pebble-64. Deretter skilles designfarger fra
+antialiasing-frynser, slik at fargetallet holder seg under 16 og bitmapen kan
+lagres som `4BitPalette` — 22 KB heap i stedet for 45 KB.
+
+Skillet gjøres på **lengste sammenhengende stripe**, ikke på pikselantall
+eller tetthet. Begge de enklere målene tar feil her: en liten solid blokk kan
+være sjeldnere enn en frynse, og pills og endekapsler er solide men spredt
+over hele flaten, så de ser like tynne ut som støy målt på omriss. Stripelengde
+stiller spørsmålet som faktisk betyr noe — fyller fargen en solid strekning
+noe sted, eller er den alltid en tynn kant?
+
+Ekte gråtoner (`#555555`, `#AAAAAA`) håndteres for seg og løses mot svart
+eller hvitt etter lyshet. Nærmeste-farge ville sendt dem et kromatisk sted:
+mellomgrå ligger bare 85 fra `#005555` men 255 fra svart målt per kanal.
 
 ## Palett
 
-Emery kan bare vise 64 farger (hver kanal 00/55/AA/FF), så 35,5 % av pikslene
-i illustrasjonen flyttet seg under snappingen. Fire farger endte annerledes
-enn antatt:
+Illustrasjonen er tegnet direkte på Pebble-paletten, så den overlever
+konverteringen nesten intakt — bare 6,1 % av pikslene flytter seg, og det er
+utelukkende antialiasing langs kanter. Sluttresultatet er 13 farger: åtte
+designfarger pluss svart og hvit, og tre frynsefarger som er små nok til å
+ikke telle visuelt.
 
-| Element | Tegnet | Blir på klokka | |
-|---|---|---|---|
-| Lyse barer | `#D6DBF0` | `#FFFFFF` | forsvinner mot hvit bakgrunn |
-| Blå elbow | `#84B9E2` | `#AAAAFF` | identisk med barene |
-| Pills/kapsler | ca. `#B0B0C8` | `#AAAAAA` | grå, ikke fiolett |
-| Batteriblokk | `#F7B195` | `#FFAAAA` | rosa, ikke oransje |
+| Element | Farge | Pebble-navn |
+|---|---|---|
+| Elbow | `#AA55AA` | Purpureus |
+| Oransje blokker | `#FFAA55` | Rajah |
+| Lyse barer | `#AAAAFF` | BabyBlueEyes |
+| Pills og endekapsler | `#5555AA` | Liberty |
+| Rød blokk | `#FF5555` | SunsetOrange |
+| Rød aksent | `#FF0000` | Red |
+| Rosa segment | `#FF55AA` | BrilliantRose |
+| Lyse kapsler | `#FFAAFF` | RichBrilliantLavender |
 
-Trygge alternativer som ligger *på* paletten: `#AAAAFF` lyse barer,
-`#55AAFF` blå elbow, `#AA55FF` fiolette pills, `#AA5555` rose (traff riktig),
-`#FF5555` rød (traff riktig), `#FFAA55` oransje batteri.
-
-Unngå også mykt antialiasing: paletten har bare fire nivåer per kanal, så
-myke kanter blir klumpete gråtoner i stedet for jevne overganger.
+Til sammenligning traff den første illustrasjonen ingen av palettfargene, og
+33 % av pikslene flyttet seg — de lyse barene forsvant helt mot hvit bakgrunn.
 
 ## Typografi
 
@@ -127,7 +140,7 @@ Sist bygde `.pbw` ligger i `dist/lcars-readout.pbw` og kan installeres direkte
 på klokka via Pebble-telefonappen.
 
 Bygget med `pebble-tool` 5.0.39 og Pebble SDK 4.17, target `emery`.
-Ressurser 13 998 B / 256 KB, statisk RAM 2 740 B / 128 KB
+Ressurser 13 859 B / 256 KB, statisk RAM 2 740 B / 128 KB
 (pluss ~22 KB heap for bakgrunnsbitmapen).
 
 ### Fallgruve på Linux uten IPv6
