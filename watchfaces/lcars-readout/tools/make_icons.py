@@ -32,16 +32,14 @@ BASE = ("https://raw.githubusercontent.com/google/material-design-icons/"
         "master/symbols/web/{name}/materialsymbolsrounded/{name}_fill1_24px.svg")
 
 # icon_*.png  ->  Material Symbols glyph name
+#
+# Only the weather icons live here. The thermometer, heart and footprints are
+# painted into the background artwork, since they never change.
 ICONS = {
     "icon_clear": "sunny",
     "icon_cloud": "cloud",
     "icon_rain": "rainy",
     "icon_snow": "weather_snowy",
-    # device_thermostat, not thermostat: the latter carries tick marks that
-    # widen its bounding box and shove the bulb off-centre at this size.
-    "icon_temp": "device_thermostat",
-    "icon_heart": "favorite",
-    "icon_steps": "footprint",
 }
 
 
