@@ -19,8 +19,8 @@ FONT = os.path.join(HERE, "..", "resources", "fonts", "Antonio-Bold.ttf")
 # Calibrated so CLEAR matches the 47px it actually renders on the watch at
 # Antonio 22; PIL's sizing does not map 1:1 to Pebble's font generator.
 CAL_PX = 21
-BUDGET = 49      # readout column, x76..125
-SAFE = 46        # leave room for the ~1px calibration error
+BUDGET = 48      # readout column, x74..121
+SAFE = 45        # leave room for the ~1px calibration error
 
 # Treat this as a filter, not a verdict. It under-estimates strings containing
 # the degree sign: PIL called "999°C" 47px, but on the watch it overflows 49

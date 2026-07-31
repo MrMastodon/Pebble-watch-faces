@@ -20,7 +20,7 @@ lisensiert PolyForm Noncommercial og ingenting derfra er kopiert.
 
 Rammen — former, overskrifter og de tre faste ikonene (termometer, hjerte,
 fotspor) — er **ett bakgrunnsbilde**, håndtegnet av brukeren:
-`resources/images/LCARS-readout_background_5.png`. Koden tegner bare verdiene
+`resources/images/LCARS-readout_background_6.png`. Koden tegner bare verdiene
 oppå. Alle koordinater i `src/c/lcars_theme.h` er målt mot det bildet, så de
 må måles om hvis illustrasjonen endres.
 
@@ -29,9 +29,9 @@ må måles om hvis illustrasjonen endres.
 | Klokkeslett | x 52–198, y 16–72 (Antonio 58) |
 | Dato | x 52–198, y 109–141 (Antonio 30) |
 | Batteri | x 0–50, y 182–197 (Antonio 16) |
-| Værikon | x 57, y 158, 17×17 |
-| Værtilstand | x 76–125, y 159–174 |
-| Temperatur | x 76–125, y 200–216 |
+| Værikon | x 55, y 158, 17×17 |
+| Værtilstand | x 74–121, y 159–174 |
+| Temperatur | x 74–121, y 200–216 |
 | Puls | x 147–198, y 159–174 |
 | Skritt | x 147–198, y 200–216 |
 | LINK (BT) | x 0–50, y 4–19 (Antonio 16) |
@@ -42,8 +42,12 @@ nærmeste grafikk over og under, ikke mot hullet i illustrasjonen: klokka står
 seg ikke dele likt).
 
 Batteriet ligger i den **røde** blokka (y 174–200), ikke den nederste — det er
-langt lettere å lese mot den fargen. De to venstre verdiene deler x76 og de to
+langt lettere å lese mot den fargen. De to venstre verdiene deler x74 og de to
 høyre deler x147, så kolonnene står i flukt selv om ikonene har ulik bredde.
+
+Venstre kolonne slutter på x122 (høyre begynner på x127). Det gir værtilstand
+og temperatur 48 px hver — `CLEAR` er den bredeste teksten og tegnes 47 px, så
+marginen er 1 px. Nye forkortelser må derfor måles, ikke antas.
 
 Værikonet er det eneste ikonet som tegnes i kode, siden det er det eneste som
 bytter. Det er 17×17 for å matche hjertet (17×15) og fotsporene (17×16) i
@@ -187,7 +191,7 @@ Elleve tilstander skilles: `CLEAR`, `PTCLD`, `CLDY`, `FOG`, `DRIZL`, `RAIN`,
 Forkortelsene er valgt etter **målt bredde, ikke tegnantall** — `W` er nesten
 dobbelt så bred som `I` i Antonio, så `SHWRS` (53 px) og `SNSHW` (54 px) ble
 avkuttet mens fem-tegns `CLEAR` (46 px) står fint. `tools/measure_text.py`
-måler en kandidat mot 49 px-budsjettet før den tas i bruk.
+måler en kandidat mot 48 px-budsjettet før den tas i bruk.
 
 WMO-kodene fra Open-Meteo mappes i `src/pkjs/index.js`, og
 `tools/test_conditions.js` går gjennom alle 28 dokumenterte koder pluss
