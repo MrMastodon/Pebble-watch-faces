@@ -34,11 +34,22 @@ static int s_cond_code = COND_UNKNOWN;
 static bool s_is_day = true;
 static bool s_connected;
 
+// Settings, mirrored from the Clay panel and persisted so they survive a
+// reload without waiting on the phone.
+static int  s_date_format = DATE_DMY;
+static bool s_temp_fahrenheit = false;
+static int  s_vibe_bt = VIBE_SHORT;
+static bool s_vibe_hourly = false;
+
 // Persisted so the last weather reading survives a watchface reload rather
 // than blanking out until the phone answers again.
-#define PKEY_COND 1
-#define PKEY_TEMP 2
-#define PKEY_DAY  3
+#define PKEY_COND        1
+#define PKEY_TEMP        2
+#define PKEY_DAY         3
+#define PKEY_DATE_FORMAT 4
+#define PKEY_TEMP_UNIT   5
+#define PKEY_VIBE_BT     6
+#define PKEY_VIBE_HOURLY 7
 
 // Antonio sits low in its line box, so every field is nudged up a little.
 static void draw_text(GContext *ctx, const char *text, GFont font,
@@ -131,7 +142,10 @@ static void apply_condition(int code) {
 static void update_time(struct tm *t) {
   strftime(s_time_text, sizeof(s_time_text),
            clock_is_24h_style() ? "%H:%M" : "%I:%M", t);
-  strftime(s_date_text, sizeof(s_date_text), "%d.%m.%Y", t);
+  const char *fmt = "%d.%m.%Y";
+  if (s_date_format == DATE_MDY) fmt = "%m.%d.%Y";
+  else if (s_date_format == DATE_ISO) fmt = "%Y-%m-%d";
+  strftime(s_date_text, sizeof(s_date_text), fmt, t);
 }
 
 static void update_health(void) {
@@ -158,6 +172,27 @@ static void update_health(void) {
 #endif
 }
 
+// One place that decides whether the watch is allowed to buzz, so both the
+// connection alert and the hourly chime inherit the Quiet Time rule the SDK
+// asks watchfaces to honour.
+//
+// 150ms rather than the 60ms first shipped. The Time 2 uses a linear resonant
+// actuator, which reaches amplitude far faster than a rotating-mass motor, so
+// a pulse that short is not impossible in principle — but it leaves only a few
+// tens of ms at full amplitude, which is easy to miss on a loose strap. The
+// panel exposes a longer option rather than guessing a single right answer.
+static void buzz(int strength) {
+  if (strength == VIBE_OFF || quiet_time_is_active()) return;
+
+  if (strength == VIBE_LONG) {
+    vibes_short_pulse();     // the OS's own calibrated short buzz
+    return;
+  }
+  static const uint32_t pulse[] = { 150 };
+  VibePattern pat = { .durations = pulse, .num_segments = ARRAY_LENGTH(pulse) };
+  vibes_enqueue_custom_pattern(pat);
+}
+
 static void update_connection(bool connected) {
   bool was_connected = s_connected;
   s_connected = connected;
@@ -165,10 +200,8 @@ static void update_connection(bool connected) {
   // Only on the way down, and never for the initial state — s_connected is
   // seeded in init() before subscribing, so loading the watchface while the
   // phone is already out of range stays silent.
-  if (was_connected && !connected && !quiet_time_is_active()) {
-    static const uint32_t pulse[] = { 60 };
-    VibePattern pat = { .durations = pulse, .num_segments = ARRAY_LENGTH(pulse) };
-    vibes_enqueue_custom_pattern(pat);
+  if (was_connected && !connected) {
+    buzz(s_vibe_bt);
   }
 
   if (s_canvas) layer_mark_dirty(s_canvas);
@@ -182,6 +215,13 @@ static void update_battery(BatteryChargeState state) {
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
   update_time(tick_time);
   update_health();
+
+  // MINUTE_UNIT is already subscribed for the clock, so the hourly chime is
+  // just a check rather than a second subscription.
+  if (s_vibe_hourly && tick_time->tm_min == 0) {
+    buzz(VIBE_SHORT);
+  }
+
   layer_mark_dirty(s_canvas);
 }
 
@@ -194,6 +234,30 @@ static void inbox_received(DictionaryIterator *iter, void *context) {
   Tuple *cond = dict_find(iter, MESSAGE_KEY_CONDITION);
   Tuple *temp = dict_find(iter, MESSAGE_KEY_TEMPERATURE);
   Tuple *day  = dict_find(iter, MESSAGE_KEY_IS_DAY);
+
+  // Settings. Clay sends these as strings for selects and a byte for toggles,
+  // so accept whichever arrives rather than assuming one shape.
+  Tuple *t;
+  if ((t = dict_find(iter, MESSAGE_KEY_DATE_FORMAT))) {
+    s_date_format = (t->type == TUPLE_CSTRING) ? atoi(t->value->cstring)
+                                               : (int)t->value->int32;
+    persist_write_int(PKEY_DATE_FORMAT, s_date_format);
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_TEMP_UNIT))) {
+    int unit = (t->type == TUPLE_CSTRING) ? atoi(t->value->cstring)
+                                          : (int)t->value->int32;
+    s_temp_fahrenheit = (unit != 0);
+    persist_write_bool(PKEY_TEMP_UNIT, s_temp_fahrenheit);
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_VIBE_BT))) {
+    s_vibe_bt = (t->type == TUPLE_CSTRING) ? atoi(t->value->cstring)
+                                           : (int)t->value->int32;
+    persist_write_int(PKEY_VIBE_BT, s_vibe_bt);
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_VIBE_HOURLY))) {
+    s_vibe_hourly = t->value->int32 != 0;
+    persist_write_bool(PKEY_VIBE_HOURLY, s_vibe_hourly);
+  }
 
   // Read the day flag first so apply_condition() picks the right variant.
   if (day) {
@@ -210,9 +274,16 @@ static void inbox_received(DictionaryIterator *iter, void *context) {
     }
   }
   if (temp) {
-    snprintf(s_temp_text, sizeof(s_temp_text), "%d°C", (int)temp->value->int32);
+    snprintf(s_temp_text, sizeof(s_temp_text), "%d°%c", (int)temp->value->int32,
+             s_temp_fahrenheit ? 'F' : 'C');
     persist_write_int(PKEY_TEMP, (int)temp->value->int32);
   }
+
+  // The date only redraws on a tick otherwise, so a format change would sit
+  // unseen for up to a minute.
+  time_t now = time(NULL);
+  update_time(localtime(&now));
+
   layer_mark_dirty(s_canvas);
 }
 
@@ -272,6 +343,11 @@ static void init(void) {
   strcpy(s_steps_text, "--");
   apply_condition(COND_UNKNOWN);
 
+  if (persist_exists(PKEY_DATE_FORMAT)) s_date_format = persist_read_int(PKEY_DATE_FORMAT);
+  if (persist_exists(PKEY_TEMP_UNIT))   s_temp_fahrenheit = persist_read_bool(PKEY_TEMP_UNIT);
+  if (persist_exists(PKEY_VIBE_BT))     s_vibe_bt = persist_read_int(PKEY_VIBE_BT);
+  if (persist_exists(PKEY_VIBE_HOURLY)) s_vibe_hourly = persist_read_bool(PKEY_VIBE_HOURLY);
+
   if (persist_exists(PKEY_DAY)) {
     s_is_day = persist_read_bool(PKEY_DAY);
   }
@@ -279,8 +355,8 @@ static void init(void) {
     apply_condition(persist_read_int(PKEY_COND));
   }
   if (persist_exists(PKEY_TEMP)) {
-    snprintf(s_temp_text, sizeof(s_temp_text), "%d°C",
-             (int)persist_read_int(PKEY_TEMP));
+    snprintf(s_temp_text, sizeof(s_temp_text), "%d°%c",
+             (int)persist_read_int(PKEY_TEMP), s_temp_fahrenheit ? 'F' : 'C');
   }
 
   s_window = window_create();

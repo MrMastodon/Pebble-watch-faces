@@ -31,11 +31,12 @@
 #define BATT_W 50
 #define BATT_H 15
 
-// Bluetooth indicator in the bottom block (interior y 204..226). Shows LINK
+// Bluetooth indicator in the top block (interior x 1..48, y 1..19). Shows LINK
 // while connected and nothing at all when not, so a broken link reads as an
-// absence rather than as another label to parse.
+// absence rather than as another label to parse. The block is 19px tall
+// against the bottom one's 23, so the glyphs sit tighter here.
 #define LINK_X 0
-#define LINK_Y 209
+#define LINK_Y 4
 #define LINK_W 50
 #define LINK_H 15
 
@@ -87,6 +88,19 @@
 // Weather condition codes exchanged with the phone (our own enum, mapped from
 // WMO codes in src/pkjs/index.js).
 // ---------------------------------------------------------------------------
+// Settings from the Clay panel. Values must match src/pkjs/config.js.
+typedef enum {
+  DATE_DMY = 0,   // 31.12.2026
+  DATE_MDY = 1,   // 12.31.2026
+  DATE_ISO = 2,   // 2026-12-31
+} DateFormat;
+
+typedef enum {
+  VIBE_OFF   = 0,
+  VIBE_SHORT = 1,
+  VIBE_LONG  = 2,
+} VibeStrength;
+
 typedef enum {
   COND_UNKNOWN = 0,
   COND_CLEAR   = 1,

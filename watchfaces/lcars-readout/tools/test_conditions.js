@@ -7,7 +7,7 @@
 //
 //   node tools/test_conditions.js
 
-var w = require('../src/pkjs/index.js');
+var w = require('../src/pkjs/conditions.js');
 var C = w.COND;
 
 // Every code Open-Meteo documents, with what it should map to.

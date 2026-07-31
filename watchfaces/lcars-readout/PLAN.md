@@ -1,13 +1,9 @@
 # LCARS Readout — design og status
 
-| Slik den ser ut nå (emulator) | Med vær- og helsedata til stede |
-|---|---|
-| ![](screenshot.png) | ![](screenshot-with-data.png) |
+![](screenshot.png)
 
-Venstre bilde er tatt rett fra emulatoren. Emulatoren har ingen posisjons-
-kilde og ingen helsedata, så vær, puls og skritt står som `--`/`0`. Høyre
-bilde er samme bygg med verdiene fylt inn manuelt, for å vise hvordan det ser
-ut på klokka når telefonen er tilkoblet.
+Tatt rett fra emulatoren, med ekte vær hentet fra Open-Meteo. Puls og skritt
+står som `--`/`0` fordi emulatoren ikke har helsedata; alt annet er live.
 
 ## Konsept
 
@@ -38,7 +34,7 @@ må måles om hvis illustrasjonen endres.
 | Temperatur | x 76–125, y 200–216 |
 | Puls | x 147–198, y 159–174 |
 | Skritt | x 147–198, y 200–216 |
-| LINK (BT) | x 0–50, y 209–224 (Antonio 16) |
+| LINK (BT) | x 0–50, y 4–19 (Antonio 16) |
 
 Klokkeslett og dato er sentrert ved å måle faktisk avstand fra sifrene til
 nærmeste grafikk over og under, ikke mot hullet i illustrasjonen: klokka står
@@ -103,7 +99,7 @@ veier lite.
 | Ressurs | Bruk | Tegn |
 |---|---|---|
 | `FONT_ANTONIO_58` | klokkeslett | `[0-9:]` |
-| `FONT_ANTONIO_30` | dato | `[0-9.]` |
+| `FONT_ANTONIO_30` | dato | `[0-9.-]` |
 | `FONT_ANTONIO_22` | avlesningsverdier | `[0-9A-Z%°.:?-]` |
 | `FONT_ANTONIO_16` | batteriprosent, LINK | `[0-9%LINK]` |
 
@@ -130,22 +126,54 @@ Kilde-SVG-ene ligger i `resources/images/src/`, og PNG-ene bygges av
 | Puls, skritt | `HealthService` | live på klokka, tomt i emulator |
 | Vær | `src/pkjs/index.js` → Open-Meteo | live, verifisert i emulator |
 
-Bluetooth vises som `LINK` i den nederste blokka når telefonappen er
+Bluetooth vises som `LINK` i den **øverste** blokka når telefonappen er
 tilkoblet, og blokka står helt tom når den ikke er det — et brutt samband
-leser da som et fravær i stedet for enda en etikett å tolke. Svart tekst gir
-5,3:1 mot `#FF0000`; hvit ville gitt 4,0:1.
+leser da som et fravær i stedet for enda en etikett å tolke.
 
-Ved brudd gis en 60 ms vibrering, kortere enn `vibes_short_pulse()`. Den
-utløses bare på overgangen tilkoblet → frakoblet, og `s_connected` seedes fra
+Ved brudd vibrerer klokka, hvis innstillingen tillater det. Den utløses bare
+på overgangen tilkoblet → frakoblet, og `s_connected` seedes fra
 `connection_service_peek_pebble_app_connection()` *før* abonnementet, slik at
 urskiva ikke vibrerer når den lastes mens telefonen allerede er utenfor
-rekkevidde. Vibreringen hoppes over under Quiet Time, som SDK-en eksplisitt
-ber om — ellers ville klokka buzzet hver gang telefonen mistet kontakt om
-natta.
+rekkevidde.
+
+Første forsøk brukte 60 ms, og brukeren merket ingenting. Antagelsen om at
+motoren trengte tid på å komme opp i turtall gjaldt en roterende ubalansert
+masse; Time 2 bruker en **lineær resonansaktuator**, som når full amplitude
+langt raskere. 60 ms er derfor ikke umulig i prinsippet, men det gir bare noen
+titalls millisekunder på full styrke — lett å gå glipp av på en løs reim.
+`kort` er nå 150 ms og `lang` bruker `vibes_short_pulse()`, så brukeren kan
+skru opp selv i stedet for at vi gjetter én riktig verdi.
+
+`buzz()` er det ene stedet som avgjør om klokka får vibrere, så både
+BT-varselet og timesignalet arver Quiet Time-regelen SDK-en ber om.
 
 Det er ingen debounce: et kort brudd som straks kobler seg opp igjen gir en
 vibrering. Blir det støyende i praksis er en AppTimer-debounce en liten
 tilleggsendring.
+
+## Innstillinger
+
+Panelet er bygget med **Clay** (`pebble-clay`, `src/pkjs/config.js`), som
+krever `enableMultiJS` — den var allerede på. Fire innstillinger:
+
+| Innstilling | Valg | Virker |
+|---|---|---|
+| Datoformat | `31.12.2026` / `12.31.2026` / `2026-12-31` | klokka bytter `strftime`-mønster |
+| Temperatur | Celsius / Fahrenheit | telefonen ber Open-Meteo om enheten |
+| Vibrering ved brudd | av / kort / lang | `buzz()` på klokka |
+| Timesignal | av / på | sjekk på `tm_min == 0` i tick-handleren |
+
+Alle fire persisteres på klokka (`PKEY_DATE_FORMAT` og utover), så de
+overlever en omstart uten å vente på telefonen. Clay sender select-verdier som
+strenger og toggles som byte, så mottakssiden godtar begge former i stedet for
+å anta én.
+
+Temperaturen konverteres av Open-Meteo via `temperature_unit` i URL-en, ikke på
+klokka — ett felt i stedet for regnestykke og avrundingsregel i C. Enheten
+sendes med som egen nøkkel så klokka vet hvilken suffiks den skal skrive.
+
+Timesignalet trenger ikke eget abonnement: `tick_handler()` kjører allerede på
+`MINUTE_UNIT`.
 
 Værhentingen bruker Open-Meteo, som ikke krever API-nøkkel, og henter hver
 30. minutt. Siste måling lagres med `persist_write_int`, så den overlever en
@@ -194,7 +222,7 @@ Sist bygde `.pbw` ligger i `dist/lcars-readout.pbw` og kan installeres direkte
 på klokka via Pebble-telefonappen.
 
 Bygget med `pebble-tool` 5.0.39 og Pebble SDK 4.17, target `emery`.
-Ressurser 14 431 B / 256 KB, statisk RAM 3 692 B / 128 KB
+Ressurser 14 444 B / 256 KB, statisk RAM 4 256 B / 128 KB
 (pluss ~22 KB heap for bakgrunnsbitmapen).
 
 ### Fallgruve: `enableMultiJS` og navnet på JS-bunten

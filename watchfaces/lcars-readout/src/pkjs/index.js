@@ -1,33 +1,30 @@
-// Phone-side weather fetch. Open-Meteo needs no API key, which keeps the
-// watchface installable without any per-user setup.
+// Phone-side weather fetch plus the Clay settings bridge. Open-Meteo needs no
+// API key, which keeps the watchface installable without any per-user setup.
 
-// Must match WeatherCondition in src/c/lcars_theme.h.
-var COND = {
-  UNKNOWN: 0, CLEAR: 1, PARTLY: 2, CLOUD: 3, FOG: 4, DRIZZLE: 5,
-  RAIN: 6, FZRAIN: 7, SNOW: 8, SHOWERS: 9, SNOWSH: 10, STORM: 11,
-  NO_LOCATION: 90, NO_NET: 91
-};
+var Clay = require('pebble-clay');
+var clayConfig = require('./config');
+var clay = new Clay(clayConfig);
+
+var conditions = require('./conditions');
+var COND = conditions.COND;
+var conditionFromWmo = conditions.conditionFromWmo;
 
 var REFRESH_MS = 30 * 60 * 1000;
 var RETRY_MS = 60 * 1000;
 var MAX_RETRIES = 3;
 
-// WMO weather interpretation codes -> the conditions the watch can show.
-// Exported for tools/test_conditions.js, which walks every documented code.
-function conditionFromWmo(code) {
-  if (code === 0 || code === 1) return COND.CLEAR;
-  if (code === 2) return COND.PARTLY;
-  if (code === 3) return COND.CLOUD;
-  if (code === 45 || code === 48) return COND.FOG;
-  if (code >= 51 && code <= 55) return COND.DRIZZLE;
-  if (code === 56 || code === 57) return COND.FZRAIN;
-  if (code >= 61 && code <= 65) return COND.RAIN;
-  if (code === 66 || code === 67) return COND.FZRAIN;
-  if ((code >= 71 && code <= 75) || code === 77) return COND.SNOW;
-  if (code >= 80 && code <= 82) return COND.SHOWERS;
-  if (code === 85 || code === 86) return COND.SNOWSH;
-  if (code >= 95 && code <= 99) return COND.STORM;
-  return COND.UNKNOWN;
+// Temperature is converted by Open-Meteo rather than on the watch — it takes a
+// unit parameter, so it is one field in the URL instead of arithmetic and a
+// rounding rule in C.
+function tempUnit() {
+  try {
+    var v = localStorage.getItem('clay-settings');
+    if (v) {
+      var s = JSON.parse(v);
+      if (s.TEMP_UNIT === '1' || s.TEMP_UNIT === 1) return 'fahrenheit';
+    }
+  } catch (e) { /* fall through to the default */ }
+  return 'celsius';
 }
 
 function send(msg) {
@@ -56,7 +53,8 @@ function lastPosition() {
 
 function fetchWeather(lat, lon, attempt) {
   var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat +
-            '&longitude=' + lon + '&current=temperature_2m,weather_code,is_day';
+            '&longitude=' + lon + '&current=temperature_2m,weather_code,is_day' +
+            '&temperature_unit=' + tempUnit();
 
   var req = new XMLHttpRequest();
   req.open('GET', url, true);
@@ -79,7 +77,9 @@ function fetchWeather(lat, lon, attempt) {
         CONDITION: conditionFromWmo(current.weather_code),
         TEMPERATURE: Math.round(current.temperature_2m),
         // Drives the moon variants for clear and partly-cloudy.
-        IS_DAY: current.is_day ? 1 : 0
+        IS_DAY: current.is_day ? 1 : 0,
+        // So the watch knows which suffix to print.
+        TEMP_UNIT: tempUnit() === 'fahrenheit' ? 1 : 0
       });
     } catch (e) {
       failed('parse error: ' + e);
@@ -125,9 +125,11 @@ if (typeof Pebble !== 'undefined') {
     // Open-Meteo updates hourly, so polling faster only costs battery.
     setInterval(function () { updateWeather(); }, REFRESH_MS);
   });
-}
 
-// Exposed for the offline mapping test; harmless in the phone runtime.
-if (typeof module !== 'undefined') {
-  module.exports = { COND: COND, conditionFromWmo: conditionFromWmo };
+  // Clay hands the saved settings straight to the watch; refetch afterwards
+  // because the temperature unit changes what we have to ask Open-Meteo for.
+  Pebble.addEventListener('webviewclosed', function (e) {
+    if (!e || !e.response) return;
+    updateWeather();
+  });
 }

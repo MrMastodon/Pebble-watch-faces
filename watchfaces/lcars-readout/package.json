@@ -6,7 +6,9 @@
     "pebble-app"
   ],
   "private": true,
-  "dependencies": {},
+  "dependencies": {
+    "pebble-clay": "^1.0.4"
+  },
   "pebble": {
     "displayName": "LCARS Readout",
     "uuid": "c5b28b21-c964-45e1-89ae-f9dff105b461",
@@ -24,7 +26,11 @@
     "messageKeys": [
       "CONDITION",
       "TEMPERATURE",
-      "IS_DAY"
+      "IS_DAY",
+      "DATE_FORMAT",
+      "TEMP_UNIT",
+      "VIBE_BT",
+      "VIBE_HOURLY"
     ],
     "resources": {
       "media": [
@@ -44,7 +50,7 @@
           "type": "font",
           "name": "FONT_ANTONIO_30",
           "file": "fonts/Antonio-Bold.ttf",
-          "characterRegex": "[0-9.]"
+          "characterRegex": "[0-9.-]"
         },
         {
           "type": "font",
