@@ -210,6 +210,39 @@ telefonkoden, henter posisjon og svar fra Open-Meteo, og verdiene lander på
 skjermen. Puls og skritt er fortsatt tomme der, siden emulatoren ikke har
 helsedata.
 
+## Robusthet
+
+Gjennomgått for stabilitet og sikkerhet. Det som ble funnet og fikset:
+
+**Manglende bakgrunn tok ned urskiva.** `graphics_draw_bitmap_in_rect()` med
+en `NULL`-bitmap krasjer — verifisert ved å tvinge `s_background` til `NULL`
+og se at emulatoren sluttet å svare, mot en kontroll med ekte bakgrunn som
+virket. Bakgrunnen er den største allokeringen på heapen (~22 KB) og dermed
+den som først feiler under press. Nå tegnes hvit bunn i stedet, så verdiene
+er fortsatt lesbare. Fontene har tilsvarende fallback til systemfonter.
+
+**Urimelig temperatur tømte feltet.** `°` er to byte i UTF-8, så en sekssifret
+verdi ble avkuttet midt i tegnet og etterlot ugyldig UTF-8 — som renderen
+dropper stille, slik at feltet ble stående tomt. Verdien klemmes nå til
+−99…199. Grensen er satt etter hva som faktisk rendres, ikke etter `int32`:
+`100°C` er 48 px av 49, mens `999°C` flyter over, fordi `1` er en smal glyf i
+Antonio og `9` ikke er det.
+
+**`layer_mark_dirty()` uten `NULL`-sjekk** i tre av fem tilbakekall. Vanskelig
+å nå i praksis, men inkonsekvent med de to som sjekket. Nå sjekker alle.
+
+**AppMessage-innboksen** er hevet fra 128 til 256 byte. 128 holdt til dagens
+meldinger, men Clay sender alle innstillingene i én ordbok, så et større
+panel ville begynt å droppe meldinger stille i stedet for å feile høylytt.
+`app_message_deregister_callbacks()` er lagt til i `deinit()`.
+
+Sikkerhetsmessig er angrepsflaten liten: URL-en bygges av tall som er
+`parseFloat`-et og `isNaN`-sjekket, så ingen injeksjon; trafikken går over
+HTTPS; det finnes ingen API-nøkkel å lekke. Innstillinger fra telefonen
+`atoi`-es og faller tilbake til trygge standardverdier ved søppel. Posisjonen
+lagres i `localStorage` på telefonen og sendes kun til Open-Meteo — det er
+iboende i det å ha vær i det hele tatt, men verdt å vite.
+
 ## Bygg
 
 ```bash
@@ -222,7 +255,7 @@ Sist bygde `.pbw` ligger i `dist/lcars-readout.pbw` og kan installeres direkte
 på klokka via Pebble-telefonappen.
 
 Bygget med `pebble-tool` 5.0.39 og Pebble SDK 4.17, target `emery`.
-Ressurser 14 444 B / 256 KB, statisk RAM 4 256 B / 128 KB
+Ressurser 14 444 B / 256 KB, statisk RAM 4 508 B / 128 KB
 (pluss ~22 KB heap for bakgrunnsbitmapen).
 
 ### Fallgruve: `enableMultiJS` og navnet på JS-bunten

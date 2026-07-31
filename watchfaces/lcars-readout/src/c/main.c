@@ -26,7 +26,7 @@ static char s_time_text[8];
 static char s_date_text[12];
 static char s_batt_text[8];
 static char s_cond_text[10];
-static char s_temp_text[8];
+static char s_temp_text[12];
 static char s_hr_text[8];
 static char s_steps_text[8];
 
@@ -51,6 +51,29 @@ static bool s_vibe_hourly = false;
 #define PKEY_VIBE_BT     6
 #define PKEY_VIBE_HOURLY 7
 
+// A custom font that fails to load would otherwise be passed to
+// graphics_draw_text as NULL. Falling back to a system font keeps the face
+// readable instead of betting on how the renderer handles it.
+static GFont load_font(uint32_t resource_id, const char *fallback_key) {
+  GFont f = fonts_load_custom_font(resource_get_handle(resource_id));
+  return f ? f : fonts_get_system_font(fallback_key);
+}
+
+// The phone is not a trusted source of well-formed values. Unclamped, a
+// six-digit temperature truncates mid-way through the two-byte degree sign and
+// leaves invalid UTF-8, which the renderer drops silently — the field just goes
+// blank. Clamping keeps the buffer whole for anything that can be printed.
+// Bounds are what actually renders, not what int32 allows. Measured on the
+// watch: "100°C" is 48px of the 49px field but "999°C" overflows, because 1 is
+// a narrow glyph in Antonio and 9 is not. 199 is past any real temperature in
+// either unit and still leads with the narrow digit.
+static void set_temp_text(int degrees) {
+  if (degrees > 199) degrees = 199;
+  if (degrees < -99) degrees = -99;
+  snprintf(s_temp_text, sizeof(s_temp_text), "%d°%c", degrees,
+           s_temp_fahrenheit ? 'F' : 'C');
+}
+
 // Antonio sits low in its line box, so every field is nudged up a little.
 static void draw_text(GContext *ctx, const char *text, GFont font,
                       int x, int y, int w, int h, GTextAlignment align) {
@@ -59,8 +82,17 @@ static void draw_text(GContext *ctx, const char *text, GFont font,
 }
 
 static void canvas_update_proc(Layer *layer, GContext *ctx) {
-  graphics_context_set_compositing_mode(ctx, GCompOpAssign);
-  graphics_draw_bitmap_in_rect(ctx, s_background, GRect(0, 0, SCREEN_W, SCREEN_H));
+  // Verified: passing a NULL bitmap here takes the watchface down. The
+  // background is the largest allocation on the heap, so it is the one most
+  // likely to fail under pressure — fall back to a blank ground and keep the
+  // values readable rather than crashing.
+  if (s_background) {
+    graphics_context_set_compositing_mode(ctx, GCompOpAssign);
+    graphics_draw_bitmap_in_rect(ctx, s_background, GRect(0, 0, SCREEN_W, SCREEN_H));
+  } else {
+    graphics_context_set_fill_color(ctx, GColorWhite);
+    graphics_fill_rect(ctx, GRect(0, 0, SCREEN_W, SCREEN_H), 0, GCornerNone);
+  }
 
   graphics_context_set_text_color(ctx, C_TEXT);
 
@@ -222,12 +254,12 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
     buzz(VIBE_SHORT);
   }
 
-  layer_mark_dirty(s_canvas);
+  if (s_canvas) layer_mark_dirty(s_canvas);
 }
 
 static void health_handler(HealthEventType event, void *context) {
   update_health();
-  layer_mark_dirty(s_canvas);
+  if (s_canvas) layer_mark_dirty(s_canvas);
 }
 
 static void inbox_received(DictionaryIterator *iter, void *context) {
@@ -274,8 +306,7 @@ static void inbox_received(DictionaryIterator *iter, void *context) {
     }
   }
   if (temp) {
-    snprintf(s_temp_text, sizeof(s_temp_text), "%d°%c", (int)temp->value->int32,
-             s_temp_fahrenheit ? 'F' : 'C');
+    set_temp_text((int)temp->value->int32);
     persist_write_int(PKEY_TEMP, (int)temp->value->int32);
   }
 
@@ -284,7 +315,7 @@ static void inbox_received(DictionaryIterator *iter, void *context) {
   time_t now = time(NULL);
   update_time(localtime(&now));
 
-  layer_mark_dirty(s_canvas);
+  if (s_canvas) layer_mark_dirty(s_canvas);
 }
 
 // ---------------------------------------------------------------------------
@@ -292,10 +323,10 @@ static void inbox_received(DictionaryIterator *iter, void *context) {
 static void window_load(Window *window) {
   s_background = gbitmap_create_with_resource(RESOURCE_ID_BACKGROUND);
 
-  s_font_time  = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_ANTONIO_58));
-  s_font_date  = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_ANTONIO_30));
-  s_font_value = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_ANTONIO_22));
-  s_font_batt  = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_ANTONIO_16));
+  s_font_time  = load_font(RESOURCE_ID_FONT_ANTONIO_58, FONT_KEY_BITHAM_42_BOLD);
+  s_font_date  = load_font(RESOURCE_ID_FONT_ANTONIO_30, FONT_KEY_GOTHIC_28_BOLD);
+  s_font_value = load_font(RESOURCE_ID_FONT_ANTONIO_22, FONT_KEY_GOTHIC_18_BOLD);
+  s_font_batt  = load_font(RESOURCE_ID_FONT_ANTONIO_16, FONT_KEY_GOTHIC_14_BOLD);
 
   s_icon_clear    = gbitmap_create_with_resource(RESOURCE_ID_ICON_CLEAR);
   s_icon_clear_n  = gbitmap_create_with_resource(RESOURCE_ID_ICON_CLEAR_N);
@@ -355,8 +386,7 @@ static void init(void) {
     apply_condition(persist_read_int(PKEY_COND));
   }
   if (persist_exists(PKEY_TEMP)) {
-    snprintf(s_temp_text, sizeof(s_temp_text), "%d°%c",
-             (int)persist_read_int(PKEY_TEMP), s_temp_fahrenheit ? 'F' : 'C');
+    set_temp_text((int)persist_read_int(PKEY_TEMP));
   }
 
   s_window = window_create();
@@ -386,7 +416,10 @@ static void init(void) {
 #endif
 
   app_message_register_inbox_received(inbox_received);
-  app_message_open(128, 32);
+  // 128 bytes covered today's messages but left no room: Clay sends every
+  // setting in one dictionary, so the panel growing would start silently
+  // dropping messages rather than failing loudly.
+  app_message_open(256, 64);
 }
 
 static void deinit(void) {
@@ -396,6 +429,7 @@ static void deinit(void) {
 #if defined(PBL_HEALTH)
   health_service_events_unsubscribe();
 #endif
+  app_message_deregister_callbacks();
   window_destroy(s_window);
 }
 

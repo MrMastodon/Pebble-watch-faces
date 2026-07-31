@@ -22,6 +22,11 @@ CAL_PX = 21
 BUDGET = 49      # readout column, x76..125
 SAFE = 46        # leave room for the ~1px calibration error
 
+# Treat this as a filter, not a verdict. It under-estimates strings containing
+# the degree sign: PIL called "999°C" 47px, but on the watch it overflows 49
+# and ellipsises. Anything close to the budget should still be checked in the
+# emulator.
+
 
 def main():
     words = sys.argv[1:] or ["CLEAR", "PTCLD", "CLDY", "FOG", "DRIZL", "RAIN",
