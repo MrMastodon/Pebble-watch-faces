@@ -205,14 +205,32 @@ static void apply_condition(int code) {
 // Follows the watch's own 12/24-hour setting. There is deliberately no override
 // in the settings panel: it would be a second switch for the same choice, and
 // the two could disagree.
+//
+// 24-hour is formatted here, 12-hour is handed to the firmware, and that split
+// is deliberate. clock_copy_time_string() honours every time preference the user
+// has set — including ones this SDK exposes no API for, such as the
+// leading-zero-on-12h option added in a later Pebble OS — so a preference we
+// cannot read is still one we can obey. But measured on 4.17 it returns "7:30"
+// for 07:30 in 24-hour mode, dropping a leading zero this face has always shown.
+// Delegating both halves would have changed 24-hour display as a side effect of
+// supporting a 12-hour setting, so strftime keeps that one.
+//
+// The firmware call reads the current time rather than the tm we were handed.
+// That is the same instant in both callers — the tick handler fires because the
+// RTC advanced — and clock_format_12h() covers us if it ever returns nonsense.
 static void update_time(struct tm *t) {
   if (clock_is_24h_style()) {
     strftime(s_time_text, sizeof(s_time_text), "%H:%M", t);
     s_ampm_text[0] = '\0';
   } else {
-    clock_format_12h(t->tm_hour, t->tm_min,
-                     s_time_text, sizeof(s_time_text),
-                     s_ampm_text, sizeof(s_ampm_text));
+    char raw[16] = { 0 };
+    clock_copy_time_string(raw, sizeof(raw));
+    if (!clock_split_time_string(raw, s_time_text, sizeof(s_time_text),
+                                 s_ampm_text, sizeof(s_ampm_text))) {
+      clock_format_12h(t->tm_hour, t->tm_min,
+                       s_time_text, sizeof(s_time_text),
+                       s_ampm_text, sizeof(s_ampm_text));
+    }
   }
 
   const char *fmt = "%d.%m.%Y";

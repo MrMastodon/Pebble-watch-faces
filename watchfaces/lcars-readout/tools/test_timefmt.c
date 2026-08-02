@@ -1,6 +1,9 @@
-// Walks all 1440 minutes of the day through the same clock_format_12h() the
-// watchface uses, so the midnight and noon edges are checked by something other
-// than a glance at the emulator.
+// Exercises src/c/clock_format.h on the host: all 1440 minutes of the day
+// through clock_format_12h(), and every shape a firmware might hand back
+// through clock_split_time_string(). The midnight and noon edges, and the
+// padded "07:30 PM" that the leading-zero-on-12h preference produces, are not
+// things to check by squinting at an emulator — and this SDK's firmware cannot
+// produce the padded form at all.
 //
 //     gcc -o /tmp/test_timefmt tools/test_timefmt.c && /tmp/test_timefmt
 
@@ -27,7 +30,39 @@ static void check_case(int h, int m, const char *want) {
   }
 }
 
+// The watchface's own buffers, so the size limits under test are the real ones.
+static void check_split(const char *raw, bool want_ok,
+                        const char *want_digits, const char *want_suffix) {
+  char digits[8], suffix[4];
+  bool ok = clock_split_time_string(raw, digits, sizeof(digits),
+                                    suffix, sizeof(suffix));
+  if (ok != want_ok) {
+    printf("  FAIL split \"%s\": returned %d, wanted %d\n", raw, ok, want_ok);
+    failures++;
+    return;
+  }
+  if (!ok) return;
+  if (strcmp(digits, want_digits) != 0 || strcmp(suffix, want_suffix) != 0) {
+    printf("  FAIL split \"%s\": got \"%s\"+\"%s\", wanted \"%s\"+\"%s\"\n",
+           raw, digits, suffix, want_digits, want_suffix);
+    failures++;
+  }
+}
+
 int main(void) {
+  // What clock_copy_time_string() can hand back. The first is what Pebble OS
+  // 4.17 actually returns, measured; the third is the padded form the
+  // leading-zero-on-12h preference produces on a newer firmware.
+  check_split("7:30 AM", true, "7:30", "AM");
+  check_split("12:00 PM", true, "12:00", "PM");
+  check_split("07:30 PM", true, "07:30", "PM");
+  check_split("7:30PM", true, "7:30", "PM");    // no separator
+  check_split("7:30 pm", true, "7:30", "PM");   // Antonio has no lowercase
+  check_split("19:23", true, "19:23", "");      // 24h shape, no suffix
+  check_split("", false, "", "");               // nothing at all
+  check_split("PM", false, "", "");             // no digits
+  check_split("123456789 AM", false, "", "");   // longer than the buffer
+
   // The edges, spelled out. 00:xx and 12:xx are the two that % 12 gets wrong.
   check_case(0, 0, "12:00 AM");
   check_case(0, 59, "12:59 AM");
@@ -68,7 +103,7 @@ int main(void) {
   }
 
   if (failures == 0) {
-    printf("ok: 1440 minutes + 8 edge cases\n");
+    printf("ok: 1440 minutes + 8 edge cases + 9 firmware string shapes\n");
     return 0;
   }
   printf("%d failure(s)\n", failures);
