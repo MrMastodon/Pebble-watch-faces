@@ -11,11 +11,11 @@
 // are drawn in code, so every coordinate here is measured against that image.
 // Re-measure whenever the artwork changes.
 //
-// Artwork reference points (LCARS-readout_background_6.png):
+// Artwork reference points (LCARS-readout_background_7.png):
 //   left rail blocks   y 0..20, 22..87, 92..128, 130..171, 173..201, 203..227
-//   heart icon         x 128..144, y 159..173
-//   thermometer icon   x  61..68,  y 199..215
-//   footprints icon    x 128..144, y 200..215
+//   heart icon         x 128..144, y 161..175
+//   thermometer icon   x  61..68,  y 201..217
+//   footprints icon    x 128..144, y 202..217
 //
 // The two row-2 icons are not on a shared baseline, so each value gets its own
 // box rather than sharing a grid row.
@@ -61,28 +61,28 @@
 // Weather icon — the only one drawn in code, since it is the only one that
 // changes. Sits on the thermometer's x so the two left-column rows line up.
 #define COND_ICON_X 55
-#define COND_ICON_Y 158
+#define COND_ICON_Y 160         // 17px tall, centred on the 15px heart at y161
 
 #define COND_TEXT_X 74
 #define COND_TEXT_W (122 - COND_TEXT_X)
-#define COND_TEXT_Y 159
+#define COND_TEXT_Y 161
 #define COND_TEXT_H 15
 
 #define HR_TEXT_X 147           // right of the heart
 #define HR_TEXT_W (198 - HR_TEXT_X)
-#define HR_TEXT_Y 159
+#define HR_TEXT_Y 161
 #define HR_TEXT_H 15
 
 // Shares COND_TEXT_X so the two left-column values line up, even though the
 // thermometer glyph is narrower than the weather icon above it.
 #define TEMP_TEXT_X COND_TEXT_X
 #define TEMP_TEXT_W (122 - TEMP_TEXT_X)
-#define TEMP_TEXT_Y 200
+#define TEMP_TEXT_Y 202
 #define TEMP_TEXT_H 16
 
 #define STEPS_TEXT_X 147        // right of the footprints
 #define STEPS_TEXT_W (198 - STEPS_TEXT_X)
-#define STEPS_TEXT_Y 200
+#define STEPS_TEXT_Y 202
 #define STEPS_TEXT_H 16
 
 // ---------------------------------------------------------------------------

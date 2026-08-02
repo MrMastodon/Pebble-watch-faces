@@ -20,7 +20,7 @@ lisensiert PolyForm Noncommercial og ingenting derfra er kopiert.
 
 Rammen — former, overskrifter og de tre faste ikonene (termometer, hjerte,
 fotspor) — er **ett bakgrunnsbilde**, håndtegnet av brukeren:
-`resources/images/LCARS-readout_background_6.png`. Koden tegner bare verdiene
+`resources/images/LCARS-readout_background_7.png`. Koden tegner bare verdiene
 oppå. Alle koordinater i `src/c/lcars_theme.h` er målt mot det bildet, så de
 må måles om hvis illustrasjonen endres.
 
@@ -29,11 +29,11 @@ må måles om hvis illustrasjonen endres.
 | Klokkeslett | x 52–198, y 16–72 (Antonio 58) |
 | Dato | x 52–198, y 109–141 (Antonio 30) |
 | Batteri | x 0–50, y 182–197 (Antonio 16) |
-| Værikon | x 55, y 158, 17×17 |
-| Værtilstand | x 74–121, y 159–174 |
-| Temperatur | x 74–121, y 200–216 |
-| Puls | x 147–198, y 159–174 |
-| Skritt | x 147–198, y 200–216 |
+| Værikon | x 55, y 160, 17×17 |
+| Værtilstand | x 74–121, y 161–176 |
+| Temperatur | x 74–121, y 202–218 |
+| Puls | x 147–198, y 161–176 |
+| Skritt | x 147–198, y 202–218 |
 | LINK (BT) | x 0–50, y 4–19 (Antonio 16) |
 
 Klokkeslett og dato er sentrert ved å måle faktisk avstand fra sifrene til
@@ -51,7 +51,11 @@ marginen er 1 px. Nye forkortelser må derfor måles, ikke antas.
 
 Værikonet er det eneste ikonet som tegnes i kode, siden det er det eneste som
 bytter. Det er 17×17 for å matche hjertet (17×15) og fotsporene (17×16) i
-illustrasjonen.
+illustrasjonen, og y-en settes slik at det står sentrert på hjertet.
+
+Skillestreken mellom vær- og temperaturraden (y 185–190) er ren dekor. Den er
+tegnet smalere enn kolonnen (x 55–119), så kolonnegrensen leses av
+`SENSORS`-raden (endekapsel x 116–122), ikke av streken.
 
 Bakgrunnen klargjøres av `tools/prep_background.py`, som selv plukker den
 høyest nummererte `LCARS-readout_background*.png`. Alfa flates ut mot hvitt,
