@@ -30,10 +30,10 @@ må måles om hvis illustrasjonen endres.
 | Dato | x 52–198, y 109–141 (Antonio 30) |
 | Batteri | x 0–50, y 182–197 (Antonio 16) |
 | Værikon | x 55, y 160, 17×17 |
-| Værtilstand | x 74–121, y 161–176 |
-| Temperatur | x 74–121, y 202–218 |
-| Puls | x 147–198, y 161–176 |
-| Skritt | x 147–198, y 202–218 |
+| Værtilstand | x 74–121, y 159–174 |
+| Temperatur | x 74–121, y 200–216 |
+| Puls | x 147–198, y 159–174 |
+| Skritt | x 147–198, y 200–216 |
 | LINK (BT) | x 0–50, y 4–19 (Antonio 16) |
 
 Klokkeslett og dato er sentrert ved å måle faktisk avstand fra sifrene til
@@ -51,7 +51,9 @@ marginen er 1 px. Nye forkortelser må derfor måles, ikke antas.
 
 Værikonet er det eneste ikonet som tegnes i kode, siden det er det eneste som
 bytter. Det er 17×17 for å matche hjertet (17×15) og fotsporene (17×16) i
-illustrasjonen, og y-en settes slik at det står sentrert på hjertet.
+illustrasjonen, og y-en settes slik at det står sentrert på hjertet. Når
+ikonene i illustrasjonen flytter seg, følger derfor værikonet etter — mens
+verdiene blir stående. Ikonrekka og tekstrekka er to uavhengige linjer.
 
 Skillestreken mellom vær- og temperaturraden (y 185–190) er ren dekor. Den er
 tegnet smalere enn kolonnen (x 55–119), så kolonnegrensen leses av
