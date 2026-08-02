@@ -48,35 +48,17 @@ Facet følger klokkas egen 12/24t-innstilling via `clock_is_24h_style()`. Det er
 **ingen bryter for dette i innstillingspanelet** — den ville vært et duplikat av
 systeminnstillingen, og de to kunne kommet i utakt.
 
-**24t formateres av oss, 12t av firmware.** Den delingen er bevisst.
+I 24t tegnes `%H:%M` sentrert i kolonnen, som før. I 12t regnes klokkeslettet ut
+i `src/c/clock_format.h` — ikke med `strftime`:
 
-`clock_copy_time_string()` følger *alle* brukerens tidsinnstillinger, også de
-denne SDK-en ikke har noe API for — som «leading 0 on am/pm», lagt til i en
-senere Pebble OS. En innstilling vi ikke kan lese er altså likevel en vi kan
-adlyde. Men målt på 4.17 returnerer den `7:30` for 07:30 i **24-timers** modus,
-altså uten den ledende nullen dette facet alltid har vist. Å delegere begge
-halvdeler ville endret 24t-visningen som bivirkning av å støtte en 12t-
-innstilling, så `strftime("%H:%M")` beholder den.
+- `%I` gir ledende null (`09:05` i stedet for `9:05`).
+- `%p` avhenger av locale. Returnerer den `am` med små bokstaver, tegnes det som
+  *ingenting*, siden Antonio-ressursene bare har store bokstaver. En helt taus
+  feil. `tm_hour < 12` gir svaret uten å spørre om locale.
 
-`clock_split_time_string()` i `src/c/clock_format.h` deler firmware-strengen i
-sifre og suffiks ved første tegn som ikke er siffer eller kolon. Den bryr seg
-derfor ikke om firmware skriver `7:30 PM`, `07:30 PM` eller `7:30PM`. Suffikset
-store-bokstaveres på veien inn — skriver en firmware `pm`, ville det ellers blitt
-tegnet som *ingenting*, siden Antonio-ressursene ikke har små bokstaver.
-
-Slår firmware-strengen feil, faller vi tilbake på `clock_format_12h()` i samme
-fil. Den bruker verken `%I` (som padder til to sifre) eller `%p` (som avhenger
-av locale, med samme småbokstav-fella som over) — `tm_hour < 12` gir svaret
-uten å spørre.
-
-`tools/test_timefmt.c` kjører begge funksjonene på verten: alle 1440 minutter i
-døgnet, pluss ni strengformer firmware kan levere. **Den padde formen
-(`07:30 PM`) kan ikke lages av emulatoren vår i det hele tatt**, siden 4.17
-ligger før innstillingen — den er bare dekket av verttesten.
-
-Feltbredden tåler padding: `07:30` og `12:00` har like mange tegn og dermed
-samme layoutbredde, så den paddede formen er ikke bredere enn verste tilfelle
-som allerede er målt til 139 px.
+`tools/test_timefmt.c` kjører nøyaktig samme funksjon på verten gjennom alle
+1440 minutter i døgnet. Midnatt og middag er der `% 12` går galt, og de hører
+hjemme i en test framfor et øyekast på emulatoren.
 
 Sifrene og AM/PM måles med `graphics_text_layout_get_content_size()` og
 **sentreres som én blokk**. Med et fast suffiksfelt ville klokka flyttet seg
