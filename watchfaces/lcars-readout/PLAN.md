@@ -27,6 +27,7 @@ må måles om hvis illustrasjonen endres.
 | Felt | Posisjon |
 |---|---|
 | Klokkeslett | x 52–198, y 16–72 (Antonio 58) |
+| AM/PM (kun 12t) | rett etter sifrene, y 59–75 (Antonio 16) |
 | Dato | x 52–198, y 109–141 (Antonio 30) |
 | Batteri | x 0–50, y 182–197 (Antonio 16) |
 | Værikon | x 55, y 160, 17×17 |
@@ -40,6 +41,36 @@ Klokkeslett og dato er sentrert ved å måle faktisk avstand fra sifrene til
 nærmeste grafikk over og under, ikke mot hullet i illustrasjonen: klokka står
 5 px fra begge, datoen 6 over og 5 under (mellomrommet er 11 px, så det lar
 seg ikke dele likt).
+
+## 12- og 24-timers visning
+
+Facet følger klokkas egen 12/24t-innstilling via `clock_is_24h_style()`. Det er
+**ingen bryter for dette i innstillingspanelet** — den ville vært et duplikat av
+systeminnstillingen, og de to kunne kommet i utakt.
+
+I 24t tegnes `%H:%M` sentrert i kolonnen, som før. I 12t regnes klokkeslettet ut
+i `src/c/clock_format.h` — ikke med `strftime`:
+
+- `%I` gir ledende null (`09:05` i stedet for `9:05`).
+- `%p` avhenger av locale. Returnerer den `am` med små bokstaver, tegnes det som
+  *ingenting*, siden Antonio-ressursene bare har store bokstaver. En helt taus
+  feil. `tm_hour < 12` gir svaret uten å spørre om locale.
+
+`tools/test_timefmt.c` kjører nøyaktig samme funksjon på verten gjennom alle
+1440 minutter i døgnet. Midnatt og middag er der `% 12` går galt, og de hører
+hjemme i en test framfor et øyekast på emulatoren.
+
+Sifrene og AM/PM måles med `graphics_text_layout_get_content_size()` og
+**sentreres som én blokk**. Med et fast suffiksfelt ville klokka flyttet seg
+sidelengs hver gang bredden endret seg — `1:11 AM` er 92 px og `12:00 PM` 139 px.
+
+Suffikset er Antonio 16, ikke 22. Målt på 22 ble verste tilfelle (`12:00`, den
+eneste timen med to fullbredde sifre) 148 px i en kolonne på 146, ble klemt, og
+`M` havnet klistret mot kanten. På 16 blir det 139 px med 3–4 px margin.
+
+Merk at `FONT_ANTONIO_16` måtte få `A`, `M` og `P` i `characterRegex` for dette.
+Waf invaliderer **ikke** fontcachen når regexet endres — bygget blir grønt med
+gammelt tegnsett, og de nye tegnene blir usynlige. `rm -rf build` er påkrevd.
 
 Batteriet ligger i den **røde** blokka (y 174–200), ikke den nederste — det er
 langt lettere å lese mot den fargen. De to venstre verdiene deler x74 og de to
@@ -172,6 +203,9 @@ krever `enableMultiJS` — den var allerede på. Fire innstillinger:
 | Temperatur | Celsius / Fahrenheit | telefonen ber Open-Meteo om enheten |
 | Vibrering ved brudd | av / kort / lang | `buzz()` på klokka |
 | Timesignal | av / på | sjekk på `tm_min == 0` i tick-handleren |
+
+12/24-timers visning står med vilje **ikke** her — den leses av klokkas egen
+innstilling, se avsnittet over.
 
 Alle fire persisteres på klokka (`PKEY_DATE_FORMAT` og utover), så de
 overlever en omstart uten å vente på telefonen. Clay sender select-verdier som

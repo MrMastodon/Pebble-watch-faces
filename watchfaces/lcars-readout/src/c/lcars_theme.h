@@ -49,6 +49,23 @@
 #define TIME_Y 16
 #define TIME_H 56
 
+// AM/PM, drawn only in 12-hour mode. The digits and the suffix are measured and
+// centred as one block, so these are a gap and a box size rather than a fixed
+// position — a fixed suffix column would make the clock jump sideways as the
+// digits change width.
+//
+// The suffix is Antonio 16, not 22. Measured at 22 the worst case — 12:00, the
+// only hour with two full-width digits — came to 148px in the 146px column and
+// had to be clamped, leaving the M flush against the content edge. 16 brings it
+// back inside with a margin, and a smaller suffix reads as a suffix rather than
+// competing with the digits.
+//
+// AMPM_Y bottom-aligns the suffix on the digits' baseline, which ends at y71.
+#define AMPM_GAP 3
+#define AMPM_W 24
+#define AMPM_H 16
+#define AMPM_Y 59
+
 #define DATE_Y 109
 #define DATE_H 32
 

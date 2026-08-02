@@ -62,7 +62,7 @@
           "type": "font",
           "name": "FONT_ANTONIO_16",
           "file": "fonts/Antonio-Bold.ttf",
-          "characterRegex": "[0-9%LINK]"
+          "characterRegex": "[0-9%AIKLMNP]"
         },
         {
           "type": "bitmap",

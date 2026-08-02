@@ -1,5 +1,6 @@
 #include <pebble.h>
 #include "lcars_theme.h"
+#include "clock_format.h"
 
 static Window *s_window;
 static Layer *s_canvas;
@@ -23,6 +24,8 @@ static GBitmap *s_icon_snow;
 static GBitmap *s_icon_storm;
 
 static char s_time_text[8];
+static char s_ampm_text[4];    // empty in 24-hour mode, which is what selects
+                               // the centring path in canvas_update_proc()
 static char s_date_text[12];
 static char s_batt_text[8];
 static char s_cond_text[10];
@@ -81,6 +84,35 @@ static void draw_text(GContext *ctx, const char *text, GFont font,
                      GTextOverflowModeTrailingEllipsis, align, NULL);
 }
 
+// In 24-hour mode the clock is simply centred in the content column. In 12-hour
+// mode the digits and the AM/PM suffix are measured and centred as one block,
+// so the pair stays put as the digits change width — "1:11 AM" and "12:59 PM"
+// differ by some 20px, and a fixed suffix column would shove the clock sideways
+// every time the hour rolled over.
+static void draw_clock(GContext *ctx) {
+  if (s_ampm_text[0] == '\0') {
+    draw_text(ctx, s_time_text, s_font_time, CONT_X, TIME_Y, CONT_W, TIME_H,
+              GTextAlignmentCenter);
+    return;
+  }
+
+  GSize digits = graphics_text_layout_get_content_size(
+      s_time_text, s_font_time, GRect(0, 0, CONT_W, TIME_H + 6),
+      GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft);
+  GSize suffix = graphics_text_layout_get_content_size(
+      s_ampm_text, s_font_batt, GRect(0, 0, AMPM_W, AMPM_H + 6),
+      GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft);
+
+  int total = digits.w + AMPM_GAP + suffix.w;
+  int x = CONT_X + (CONT_W - total) / 2;
+  if (x < CONT_X) x = CONT_X;   // never start left of the column
+
+  draw_text(ctx, s_time_text, s_font_time, x, TIME_Y, digits.w, TIME_H,
+            GTextAlignmentLeft);
+  draw_text(ctx, s_ampm_text, s_font_batt, x + digits.w + AMPM_GAP, AMPM_Y,
+            AMPM_W, AMPM_H, GTextAlignmentLeft);
+}
+
 static void canvas_update_proc(Layer *layer, GContext *ctx) {
   // Verified: passing a NULL bitmap here takes the watchface down. The
   // background is the largest allocation on the heap, so it is the one most
@@ -96,8 +128,7 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
 
   graphics_context_set_text_color(ctx, C_TEXT);
 
-  draw_text(ctx, s_time_text, s_font_time, CONT_X, TIME_Y, CONT_W, TIME_H,
-            GTextAlignmentCenter);
+  draw_clock(ctx);
   draw_text(ctx, s_date_text, s_font_date, CONT_X, DATE_Y, CONT_W, DATE_H,
             GTextAlignmentCenter);
   draw_text(ctx, s_batt_text, s_font_batt, BATT_X, BATT_Y, BATT_W, BATT_H,
@@ -171,9 +202,19 @@ static void apply_condition(int code) {
   }
 }
 
+// Follows the watch's own 12/24-hour setting. There is deliberately no override
+// in the settings panel: it would be a second switch for the same choice, and
+// the two could disagree.
 static void update_time(struct tm *t) {
-  strftime(s_time_text, sizeof(s_time_text),
-           clock_is_24h_style() ? "%H:%M" : "%I:%M", t);
+  if (clock_is_24h_style()) {
+    strftime(s_time_text, sizeof(s_time_text), "%H:%M", t);
+    s_ampm_text[0] = '\0';
+  } else {
+    clock_format_12h(t->tm_hour, t->tm_min,
+                     s_time_text, sizeof(s_time_text),
+                     s_ampm_text, sizeof(s_ampm_text));
+  }
+
   const char *fmt = "%d.%m.%Y";
   if (s_date_format == DATE_MDY) fmt = "%m.%d.%Y";
   else if (s_date_format == DATE_ISO) fmt = "%Y-%m-%d";
